@@ -25,6 +25,8 @@ __authors__ = [
 
 import fcntl
 import os
+import posix
+import traceback
 import unittest
 
 import dbus
@@ -36,12 +38,15 @@ import libvirt
 import mox
 import virtinst
 
+from debmarshal.distros import base
+from debmarshal.distros import ubuntu
 from debmarshal import errors
 from debmarshal import hypervisors
 from debmarshal import privops
-from debmarshal.privops import domains
-from debmarshal.privops import networks
-from debmarshal.privops import utils
+import debmarshal.utils
+from debmarshal._privops import domains
+from debmarshal._privops import networks
+from debmarshal._privops import utils
 
 
 class TestCoerceDbusArgs(unittest.TestCase):
@@ -56,6 +61,115 @@ class TestCoerceDbusArgs(unittest.TestCase):
     self.assertEqual(func(dbus.Int16(12)), True)
 
 
+class TestDaemonize(mox.MoxTestBase):
+  def setUp(self):
+    super(TestDaemonize, self).setUp()
+
+    self.mox.StubOutWithMock(os, 'fork')
+    self.mox.StubOutWithMock(os, 'setsid')
+    self.mox.StubOutWithMock(os, 'close')
+    self.mox.StubOutWithMock(os, 'open')
+    self.mox.StubOutWithMock(os, 'dup2')
+
+  def testParent(self):
+    os.fork().AndReturn(1234)
+
+    self.mox.ReplayAll()
+
+    self.assertEqual(privops._daemonize(), False)
+
+  def testIntermediate(self):
+    os.fork().AndReturn(0)
+    os.setsid()
+    os.fork().AndReturn(1234)
+
+    self.mox.ReplayAll()
+
+    self.assertRaises(SystemExit, privops._daemonize)
+
+  def testDaemon(self):
+    os.fork().AndReturn(0)
+    os.setsid()
+    os.fork().AndReturn(0)
+
+    os.close(0)
+    os.close(1)
+    os.close(2)
+
+    os.open('/dev/null', os.O_RDWR)
+    os.dup2(0, 1)
+    os.dup2(0, 2)
+
+    self.mox.ReplayAll()
+
+    self.assertEqual(privops._daemonize(), True)
+
+
+class TestAsyncCallBase(mox.MoxTestBase):
+  def setUp(self):
+    super(TestAsyncCallBase, self).setUp()
+
+    self.mox.StubOutWithMock(privops, '_daemonize')
+
+
+class TestAsyncCallNotDaemon(TestAsyncCallBase):
+  def testNotDaemon(self):
+    privops._daemonize().AndReturn(False)
+
+    @privops._asyncCall
+    def shouldNotBeCalled(_debmarshal_sender=None):
+      raise Exception("This function should not be called")
+
+    self.mox.ReplayAll()
+
+    shouldNotBeCalled(':1.13')
+
+
+class TestAsyncCallDaemon(TestAsyncCallBase):
+  def setUp(self):
+    super(TestAsyncCallDaemon, self).setUp()
+
+    self.sender = ':1.13'
+
+    privops._daemonize().AndReturn(True)
+
+    self.mox.StubOutWithMock(dbus, 'SystemBus', use_mock_anything=True)
+
+    bus = self.mox.CreateMock(dbus.bus.BusConnection)
+    self.proxy = self.mox.CreateMockAnything()
+
+    dbus.SystemBus().AndReturn(bus)
+    bus.get_object(self.sender, privops.DBUS_WAIT_OBJECT_PATH).AndReturn(
+      self.proxy)
+
+  def testSuccess(self):
+    @privops._asyncCall
+    def successFunc(_debmarshal_sender=None):
+      pass
+
+    self.proxy.callReturn(dbus_interface=privops.DBUS_WAIT_INTERFACE)
+
+    self.mox.ReplayAll()
+
+    self.assertRaises(SystemExit, successFunc, self.sender)
+
+  def testFailure(self):
+    self.mox.StubOutWithMock(traceback, 'format_exc')
+
+    traceback.format_exc().AndReturn('A traceback!')
+
+    @privops._asyncCall
+    def failFunc(_debmarshal_sender=None):
+      raise Exception('Failure!')
+
+    self.proxy.callError('A traceback!',
+                         dbus_interface=privops.DBUS_WAIT_INTERFACE)
+
+    self.mox.ReplayAll()
+
+    self.assertRaises(SystemExit, failFunc, self.sender)
+
+
 class TestCreateNetwork(mox.MoxTestBase):
   """Test debmarshal.privops.createNetwork."""
   def setUp(self):
@@ -64,23 +178,23 @@ class TestCreateNetwork(mox.MoxTestBase):
     everything else"""
     super(TestCreateNetwork, self).setUp()
 
-    self.networks = [('debmarshal-0', 500),
-                     ('debmarshal-3', 500),
-                     ('debmarshal-4', 500),
-                     ('debmarshal-4', 500)]
+    self.networks = {'debmarshal-0': 500,
+                     'debmarshal-3': 500,
+                     'debmarshal-4': 500,
+                     'debmarshal-4': 500}
     self.name = 'debmarshal-1'
-    self.gateway = '10.100.3.1'
+    self.gateway = '169.254.3.1'
     self.hosts = ['wiki.company.com', 'login.company.com']
     self.host_dict = {'wiki.company.com':
-                      ('10.100.3.2', '00:00:00:00:00:00'),
+                      ('169.254.3.2', '00:00:00:00:00:00'),
                       'login.company.com':
-                      ('10.100.3.3', '00:00:00:00:00:00')}
+                      ('169.254.3.3', '00:00:00:00:00:00')}
 
     self.mox.StubOutWithMock(utils, 'getCaller')
     utils.getCaller().AndReturn(1000)
 
-    self.mox.StubOutWithMock(utils, '_acquireLock')
-    utils._acquireLock('debmarshal-netlist', fcntl.LOCK_EX)
+    self.mox.StubOutWithMock(debmarshal.utils, 'acquireLock')
+    debmarshal.utils.acquireLock('debmarshal-netlist', fcntl.LOCK_EX)
 
     self.mox.StubOutWithMock(networks, '_validateHostname')
     networks._validateHostname(mox.IgnoreArg()).MultipleTimes()
@@ -97,7 +211,7 @@ class TestCreateNetwork(mox.MoxTestBase):
         AndReturn((self.gateway, '255.255.255.0'))
 
     self.mox.StubOutWithMock(networks, 'loadNetworkState')
-    networks.loadNetworkState(self.virt_con).AndReturn(self.networks)
+    networks.loadNetworkState(self.virt_con).AndReturn(dict(self.networks))
 
     self.mox.StubOutWithMock(virtinst.util, 'randomMAC')
     virtinst.util.randomMAC().MultipleTimes().AndReturn('00:00:00:00:00:00')
@@ -113,9 +227,8 @@ class TestCreateNetwork(mox.MoxTestBase):
   def testStoreSuccess(self):
     """Test createNetwork when everything goes right"""
     self.mox.StubOutWithMock(utils, 'storeState')
-    utils.storeState(self.networks +
-                     [(self.name, 1000)],
-                     'debmarshal-networks')
+    self.networks[self.name] = 1000
+    utils.storeState(self.networks, 'debmarshal-networks')
 
     self.mox.ReplayAll()
 
@@ -126,9 +239,8 @@ class TestCreateNetwork(mox.MoxTestBase):
     """Test that the network is destroyed if state about it can't be
     stored"""
     self.mox.StubOutWithMock(utils, 'storeState')
-    utils.storeState(self.networks +
-                     [(self.name, 1000)],
-                     'debmarshal-networks').\
+    self.networks[self.name] = 1000
+    utils.storeState(self.networks, 'debmarshal-networks').\
                      AndRaise(Exception("Error!"))
 
     self.virt_con.networkLookupByName(self.name).MultipleTimes().AndReturn(
@@ -147,17 +259,17 @@ class TestDestroyNetwork(mox.MoxTestBase):
     """Setup some mocks common to all tests of destroyNetwork"""
     super(TestDestroyNetwork, self).setUp()
 
-    self.mox.StubOutWithMock(utils, '_acquireLock')
-    utils._acquireLock('debmarshal-netlist', fcntl.LOCK_EX)
+    self.mox.StubOutWithMock(debmarshal.utils, 'acquireLock')
+    debmarshal.utils.acquireLock('debmarshal-netlist', fcntl.LOCK_EX)
 
     self.mox.StubOutWithMock(libvirt, 'open')
     self.virt_con = self.mox.CreateMock(libvirt.virConnect)
     libvirt.open(mox.IgnoreArg()).AndReturn(self.virt_con)
 
-    self.networks = [('debmarshal-0', 501),
-                     ('debmarshal-1', 500)]
+    self.networks = {'debmarshal-0': 501,
+                     'debmarshal-1': 500}
     self.mox.StubOutWithMock(networks, 'loadNetworkState')
-    networks.loadNetworkState(self.virt_con).AndReturn(self.networks)
+    networks.loadNetworkState(self.virt_con).AndReturn(dict(self.networks))
 
   def testNoNetwork(self):
     """Test that destroyNetwork doesn't try to delete a network it
@@ -191,8 +303,8 @@ class TestDestroyNetwork(mox.MoxTestBase):
     virt_net.undefine()
 
     self.mox.StubOutWithMock(utils, 'storeState')
-    new_networks = self.networks[1:]
-    utils.storeState(new_networks, 'debmarshal-networks')
+    del self.networks['debmarshal-0']
+    utils.storeState(self.networks, 'debmarshal-networks')
 
     self.mox.ReplayAll()
 
@@ -215,8 +327,8 @@ class TestCreateDomain(mox.MoxTestBase):
 
     self.mox.StubOutWithMock(utils, 'getCaller')
     utils.getCaller().MultipleTimes().AndReturn(500)
-    self.mox.StubOutWithMock(utils, '_acquireLock')
-    utils._acquireLock('debmarshal-domlist', fcntl.LOCK_EX)
+    self.mox.StubOutWithMock(debmarshal.utils, 'acquireLock')
+    debmarshal.utils.acquireLock('debmarshal-domlist', fcntl.LOCK_EX)
 
     self.mox.StubOutWithMock(hypervisors.qemu.QEMU, 'open')
     qemu_con = self.mox.CreateMock(libvirt.virConnect)
@@ -237,39 +349,39 @@ class TestCreateDomain(mox.MoxTestBase):
       '<fake_xml/>')
 
     self.mox.StubOutWithMock(domains, 'loadDomainState')
-    domains.loadDomainState().AndReturn([
-      ('debmarshal-1', 500, 'qemu')])
+    domains.loadDomainState().AndReturn({
+        ('debmarshal-1', 'qemu'): 500})
 
     self.mox.StubOutWithMock(utils, 'storeState')
-    utils.storeState([
-      ('debmarshal-1', 500, 'qemu'),
-      (name, 500, 'qemu')], 'debmarshal-domains')
+    utils.storeState({
+      ('debmarshal-1', 'qemu'): 500,
+      (name, 'qemu'): 500}, 'debmarshal-domains')
 
     qemu_con.createLinux('<fake_xml/>', 0)
 
     self.mox.ReplayAll()
 
     self.assertEqual(privops.Privops().createDomain(
-      memory, disks, net, mac, 'qemu'), name)
+      memory, disks, net, mac, 'qemu', 'x86_64'), name)
 
 
 class TestDestroyDomain(mox.MoxTestBase):
   def setUp(self):
     super(TestDestroyDomain, self).setUp()
 
-    self.domains = [
-      ('debmarshal-0', 500, 'qemu'),
-      ('debmarshal-1', 501, 'qemu')]
+    self.domains = {
+        ('debmarshal-0', 'qemu'): 500,
+        ('debmarshal-1', 'qemu'): 501}
 
-    self.mox.StubOutWithMock(utils, '_acquireLock')
-    utils._acquireLock('debmarshal-domlist', fcntl.LOCK_EX)
+    self.mox.StubOutWithMock(debmarshal.utils, 'acquireLock')
+    debmarshal.utils.acquireLock('debmarshal-domlist', fcntl.LOCK_EX)
 
     self.mox.StubOutWithMock(hypervisors.qemu.QEMU, 'open')
     self.virt_con = self.mox.CreateMock(libvirt.virConnect)
     hypervisors.qemu.QEMU.open().AndReturn(self.virt_con)
 
     self.mox.StubOutWithMock(domains, 'loadDomainState')
-    domains.loadDomainState().AndReturn(self.domains)
+    domains.loadDomainState().AndReturn(dict(self.domains))
 
   def testNoNetwork(self):
     """Test destroyDomain with a nonexistent domain."""
@@ -298,12 +410,154 @@ class TestDestroyDomain(mox.MoxTestBase):
     virt_dom.destroy()
 
     self.mox.StubOutWithMock(utils, 'storeState')
-    new_domains = self.domains[1:]
-    utils.storeState(new_domains, 'debmarshal-domains')
+    del self.domains[('debmarshal-0', 'qemu')]
+    utils.storeState(self.domains, 'debmarshal-domains')
 
     self.mox.ReplayAll()
 
     privops.Privops().destroyDomain('debmarshal-0', 'qemu')
+
+
+class TestGenerateImage(mox.MoxTestBase):
+  def test(self):
+    self.mox.StubOutWithMock(privops, '_daemonize')
+    privops._daemonize().AndReturn(True)
+
+    mock_ubuntu = self.mox.CreateMock(ubuntu.Ubuntu)
+    self.mox.StubOutWithMock(ubuntu, 'Ubuntu', use_mock_anything=True)
+    ubuntu.Ubuntu({'a': 'b'}, {'c': 'd'}).AndReturn(mock_ubuntu)
+
+    self.mox.StubOutWithMock(base, 'findDistribution')
+    base.findDistribution('ubuntu').AndReturn(ubuntu.Ubuntu)
+
+    mock_ubuntu.createCustom()
+
+    bus = self.mox.CreateMock(dbus.bus.BusConnection)
+    self.proxy = self.mox.CreateMockAnything()
+
+    self.mox.StubOutWithMock(dbus, 'SystemBus', use_mock_anything=True)
+    dbus.SystemBus().AndReturn(bus)
+
+    bus.get_object(':1.13', privops.DBUS_WAIT_OBJECT_PATH).AndReturn(
+      self.proxy)
+    self.proxy.callReturn(dbus_interface=privops.DBUS_WAIT_INTERFACE)
+
+    self.mox.ReplayAll()
+
+    self.assertRaises(
+      SystemExit,
+      privops.Privops().generateImage,
+      'ubuntu',
+      {'a': 'b'},
+      {'c': 'd'},
+      ':1.13')
+
+
+class TestCreateSnapshot(mox.MoxTestBase):
+  def setUp(self):
+    super(TestCreateSnapshot, self).setUp()
+
+    self.mock_ubuntu = self.mox.CreateMock(ubuntu.Ubuntu)
+    self.mox.StubOutWithMock(ubuntu, 'Ubuntu', use_mock_anything=True)
+
+    self.mox.StubOutWithMock(base, 'findDistribution')
+    base.findDistribution('ubuntu').AndReturn(ubuntu.Ubuntu)
+
+    ubuntu.Ubuntu({'a': 'b'}, {'c': 'd'}).AndReturn(self.mock_ubuntu)
+
+    self.mock_ubuntu.customPath().AndReturn('/custom')
+
+    self.mox.StubOutWithMock(os.path, 'exists')
+
+  def testInvalid(self):
+    os.path.exists('/custom').AndReturn(False)
+
+    self.mox.ReplayAll()
+
+    self.assertRaises(errors.NotFound, privops.Privops().createSnapshot,
+                      'ubuntu', {'a': 'b'}, {'c': 'd'}, 1024 ** 2)
+
+  def testSuccess(self):
+    os.path.exists('/custom').AndReturn(True)
+
+    self.mock_ubuntu.customCow(1024 ** 2).AndReturn('/dev/mapper/snapshot')
+
+    self.mox.StubOutWithMock(utils, 'getCaller')
+    utils.getCaller().MultipleTimes().AndReturn(500)
+
+    self.mox.StubOutWithMock(os, 'chown')
+    os.chown('/dev/mapper/snapshot', 500, -1)
+
+    self.mox.ReplayAll()
+
+    self.assertEqual(
+      privops.Privops().createSnapshot(
+        'ubuntu', {'a': 'b'}, {'c': 'd'}, 1024 ** 2),
+      '/dev/mapper/snapshot')
+
+
+class TestCleanupSnapshot(mox.MoxTestBase):
+  def testInvalid(self):
+    self.mox.StubOutWithMock(os, 'stat')
+    self.mox.StubOutWithMock(utils, 'getCaller')
+
+    os.stat('/dev/mapper/snapshot').AndReturn(posix.stat_result([
+        060660, 0, 0, 0, 501, 0, 0, 0, 0, 0]))
+
+    utils.getCaller().MultipleTimes().AndReturn(500)
+
+    self.mox.ReplayAll()
+
+    self.assertRaises(errors.AccessDenied,
+                      privops.Privops().cleanupSnapshot,
+                      '/dev/mapper/snapshot')
+
+  def testSuccess(self):
+    self.mox.StubOutWithMock(os, 'stat')
+    self.mox.StubOutWithMock(utils, 'getCaller')
+    self.mox.StubOutWithMock(base, 'captureCall')
+    self.mox.StubOutWithMock(base, 'cleanupCow')
+    self.mox.StubOutWithMock(base, 'cleanupLoop')
+
+    os.stat('/dev/mapper/snapshot').AndReturn(posix.stat_result([
+        060660, 0, 0, 0, 500, 0, 0, 0, 0, 0]))
+
+    utils.getCaller().MultipleTimes().AndReturn(500)
+
+    base.captureCall(['dmsetup', 'table', '/dev/mapper/snapshot']).AndReturn(
+      '0 1024 snapshot 7:0 7:1 128')
+
+    base.cleanupCow('/dev/mapper/snapshot')
+    base.cleanupLoop('/dev/loop0')
+
+    self.mox.ReplayAll()
+
+    privops.Privops().cleanupSnapshot('/dev/mapper/snapshot')
+
+
+class TestCallback(mox.MoxTestBase):
+  def test(self):
+    loop = self.mox.CreateMock(gobject.MainLoop)
+
+    self.mox.StubOutWithMock(gobject, 'idle_add')
+
+    cb = privops.Callback()
+    cb._loop = loop
+    cb._error = None
+
+    gobject.idle_add(loop.quit)
+    gobject.idle_add(loop.quit)
+
+    self.mox.ReplayAll()
+
+    cb.callReturn()
+
+    self.assertEqual(cb._error, None)
+
+    error_val = 'Look! An error!'
+    cb.callError(error_val)
+
+    self.assertEqual(cb._error, error_val)
 
 
 class TestCall(mox.MoxTestBase):
@@ -326,6 +580,53 @@ class TestCall(mox.MoxTestBase):
     self.mox.ReplayAll()
 
     privops.call('createNetwork', ['www.company.com', 'login.company.com'])
+
+
+class TestCallWait(mox.MoxTestBase):
+  def setUp(self):
+    super(TestCallWait, self).setUp()
+
+    bus = self.mox.CreateMock(dbus.bus.BusConnection)
+    self.call = self.mox.CreateMock(privops.Callback)
+    self.loop = self.mox.CreateMock(gobject.MainLoop)
+
+    self.mox.StubOutWithMock(privops, 'call')
+    self.mox.StubOutWithMock(dbus.mainloop.glib, 'DBusGMainLoop')
+    self.mox.StubOutWithMock(dbus, 'SystemBus', use_mock_anything=True)
+    self.mox.StubOutWithMock(privops, 'Callback', use_mock_anything=True)
+    self.mox.StubOutWithMock(gobject, 'MainLoop', use_mock_anything=True)
+
+    self.method = 'generateImage'
+    self.args = (None, None)
+
+    privops.call(self.method, *self.args)
+
+    dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
+    dbus.SystemBus().AndReturn(bus)
+
+    privops._callback = None
+    privops.Callback(bus, privops.DBUS_WAIT_OBJECT_PATH).AndReturn(self.call)
+    gobject.MainLoop().AndReturn(self.loop)
+
+  def testSuccess(self):
+    def _runSideEffects():
+      self.call._error = None
+
+    self.loop.run().WithSideEffects(_runSideEffects)
+
+    self.mox.ReplayAll()
+
+    privops.callWait(self.method, *self.args)
+
+  def testFailure(self):
+    def _runSideEffects():
+      self.call._error = Exception('This is an error!')
+
+    self.loop.run().WithSideEffects(_runSideEffects)
+
+    self.mox.ReplayAll()
+
+    self.assertRaises(Exception, privops.callWait, self.method, *self.args)
 
 
 class TestMaybeExit(mox.MoxTestBase):

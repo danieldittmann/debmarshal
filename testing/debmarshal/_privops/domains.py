@@ -65,13 +65,10 @@ def _validateNetwork(net, virt_con=None):
 
   nets = networks.loadNetworkState(virt_con)
 
-  for n in nets:
-    if n[0] == net:
-      break
-  else:
+  if net not in nets:
     raise errors.NetworkNotFound("Network %s does not exist." % net)
 
-  if n[1] != utils.getCaller():
+  if nets[net] != utils.getCaller():
     raise errors.AccessDenied("Network %s is not owned by UID %s." %
       (net, utils.getCaller()))
 
@@ -203,9 +200,9 @@ def loadDomainState():
 
   domains = utils.loadState('debmarshal-domains')
   if not domains:
-    return []
+    return {}
 
-  for dom, uid, hypervisor in domains[:]:
+  for dom, hypervisor in domains.keys():
     if hypervisor not in connections:
       hyper_class = hypervisors.base.hypervisors[hypervisor]
       connections[hypervisor] = hyper_class.open()
@@ -213,6 +210,6 @@ def loadDomainState():
     try:
       connections[hypervisor].lookupByName(dom)
     except libvirt.libvirtError:
-      domains.remove((dom, uid, hypervisor))
+      del domains[(dom, hypervisor)]
 
   return domains

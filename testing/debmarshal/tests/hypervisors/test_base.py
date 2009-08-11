@@ -23,8 +23,6 @@ __authors__ = [
 ]
 
 
-import os
-import posix
 import unittest
 
 from lxml import etree
@@ -32,31 +30,8 @@ import mox
 
 from debmarshal import errors
 from debmarshal.hypervisors import base
+from debmarshal import utils
 from debmarshal import vm
-
-
-class TestDiskIsBlockDevice(mox.MoxTestBase):
-  """Test base._diskIsBlockDevice."""
-  def testBlockDevice(self):
-    self.mox.StubOutWithMock(os, 'stat')
-    os.stat('/home/ebroder/root.img').AndReturn(posix.stat_result([
-      # st_mode is the first argument
-      060644, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
-
-    self.mox.ReplayAll()
-
-    self.assertEqual(base._diskIsBlockDevice('/home/ebroder/root.img'),
-                     True)
-
-  def testFile(self):
-    self.mox.StubOutWithMock(os, 'stat')
-    os.stat('/home/ebroder/root.img').AndReturn(posix.stat_result([
-      0100644, 0, 0, 0, 0, 0, 0, 0, 0, 0]))
-
-    self.mox.ReplayAll()
-
-    self.assertEqual(base._diskIsBlockDevice('/home/ebroder/root.img'),
-                     False)
 
 
 class TestHypervisorMeta(unittest.TestCase):
@@ -91,7 +66,8 @@ class TestHypervisorDomainXML(mox.MoxTestBase):
                     memory=42,
                     disks=[],
                     network='debmarshal-0',
-                    mac='00:11:22:33:44:55')
+                    mac='00:11:22:33:44:55',
+                    arch='x86_64')
 
     xml = base.Hypervisor.domainXML(test_vm)
 
@@ -124,11 +100,12 @@ class TestHypervisorDomainXML(mox.MoxTestBase):
                     disks=['/home/ebroder/block-dev',
                            '/home/ebroder/file.img'],
                     network='debmarshal-1',
-                    mac='AA:BB:CC:DD:EE:FF')
+                    mac='AA:BB:CC:DD:EE:FF',
+                    arch='x86_64')
 
-    self.mox.StubOutWithMock(base, '_diskIsBlockDevice')
-    base._diskIsBlockDevice('/home/ebroder/block-dev').AndReturn(True)
-    base._diskIsBlockDevice('/home/ebroder/file.img').AndReturn(False)
+    self.mox.StubOutWithMock(utils, 'diskIsBlockDevice')
+    utils.diskIsBlockDevice('/home/ebroder/block-dev').AndReturn(True)
+    utils.diskIsBlockDevice('/home/ebroder/file.img').AndReturn(False)
 
     self.mox.ReplayAll()
 

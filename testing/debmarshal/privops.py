@@ -40,6 +40,9 @@ __authors__ = [
 
 
 import fcntl
+import os
+import sys
+import traceback
 
 from dbus.mainloop import glib
 import dbus.service
@@ -48,9 +51,11 @@ import gobject
 import libvirt
 import virtinst
 
+from debmarshal.distros import base
 from debmarshal import errors
 from debmarshal import hypervisors
 from debmarshal import ip
+import debmarshal.utils
 from debmarshal import vm
 from debmarshal._privops import domains
 from debmarshal._privops import networks
@@ -60,10 +65,16 @@ from debmarshal._privops import utils
 DBUS_INTERFACE='com.googlecode.debmarshal.Privops'
 
 
+DBUS_WAIT_INTERFACE='com.googlecode.debmarshal.Callback'
+
+
 DBUS_BUS_NAME='com.googlecode.debmarshal'
 
 
 DBUS_OBJECT_PATH='/com/googlecode/debmarshal/Privops'
+
+
+DBUS_WAIT_OBJECT_PATH='/com/googlecode/debmarshal/Callback'
 
 
 _READY_TO_EXIT=False
@@ -92,6 +103,65 @@ def _resetExitTimer(f, *args, **kwargs):
   return f(*args, **kwargs)
 
 
+def _daemonize():
+  """Fork off into a separate process.
+
+  This function handles all of the necessary forking and other syscall
+  games needed to create a separate process, in a different process
+  group, without a controlling terminal, etc.
+
+  Returns:
+    True if this is the daemonized process and False if this is not
+  """
+  if os.fork():
+    return False
+
+  os.setsid()
+  if os.fork():
+    sys.exit(0)
+
+  for fd in range(3):
+    os.close(fd)
+  os.open('/dev/null', os.O_RDWR)
+  os.dup2(0, 1)
+  os.dup2(0, 2)
+
+  return True
+
+
+@decorator.decorator
+def _asyncCall(f, *args, **kwargs):
+  """Decorator to run the decorated function in a separate daemon.
+
+  This decorator makes a function or method asynchronous by spinning
+  it out into a separate daemon.
+
+  It causes the method to return None, and is intended for use with
+  the callWait method.
+  """
+  if _daemonize():
+    # The _debmarshal_sender argument should be coming in as a kwarg,
+    # but instead it's coming in as a positional argument. Not sure
+    # why.
+    sender = args[-1]
+
+    success = True
+
+    try:
+      f(*args, **kwargs)
+    except:
+      success = False
+      tb = traceback.format_exc()
+
+    proxy = dbus.SystemBus().get_object(sender, DBUS_WAIT_OBJECT_PATH)
+    if success:
+      proxy.callReturn(dbus_interface=DBUS_WAIT_INTERFACE)
+    else:
+      proxy.callError(tb, dbus_interface=DBUS_WAIT_INTERFACE)
+
+    sys.exit(0)
+
+
 class Privops(dbus.service.Object):
   """Collection class for privileged dbus methods.
 
@@ -110,7 +180,7 @@ class Privops(dbus.service.Object):
   @dbus.service.method(DBUS_INTERFACE, sender_keyword='_debmarshal_sender',
                        in_signature='as', out_signature='(sssa{s(ss)})')
   @_coerceDbusArgs
-  @utils.withLockfile('debmarshal-netlist', fcntl.LOCK_EX)
+  @debmarshal.utils.withLockfile('debmarshal-netlist', fcntl.LOCK_EX)
   def createNetwork(self, hosts, _debmarshal_sender=None):
     """All of the networking config you need for a debmarshal test rig.
 
@@ -174,7 +244,7 @@ class Privops(dbus.service.Object):
 
     try:
       nets = networks.loadNetworkState(virt_con)
-      nets.append((net_name, utils.getCaller()))
+      nets[net_name] = utils.getCaller()
       utils.storeState(nets, 'debmarshal-networks')
     except:
       virt_con.networkLookupByName(net_name).destroy()
@@ -189,7 +259,7 @@ class Privops(dbus.service.Object):
   @dbus.service.method(DBUS_INTERFACE, sender_keyword='_debmarshal_sender',
                        in_signature='s', out_signature='')
   @_coerceDbusArgs
-  @utils.withLockfile('debmarshal-netlist', fcntl.LOCK_EX)
+  @debmarshal.utils.withLockfile('debmarshal-netlist', fcntl.LOCK_EX)
   def destroyNetwork(self, name, _debmarshal_sender=None):
     """Destroy a debmarshal network.
 
@@ -211,29 +281,26 @@ class Privops(dbus.service.Object):
     virt_con = libvirt.open('qemu:///system')
 
     nets = networks.loadNetworkState(virt_con)
-    for net in nets:
-      if net[0] == name:
-        break
-    else:
+    if name not in nets:
       raise errors.NetworkNotFound("Network %s does not exist." % name)
 
-    if utils.getCaller() not in (0, net[1]):
+    if utils.getCaller() not in (0, nets[name]):
       raise errors.AccessDenied("Network %s not owned by UID %d." % (name, utils.getCaller()))
 
     virt_con.networkLookupByName(name).destroy()
     virt_con.networkLookupByName(name).undefine()
 
-    nets.remove(net)
+    del nets[name]
     utils.storeState(nets, 'debmarshal-networks')
 
     utils.caller = None
 
   @_resetExitTimer
   @dbus.service.method(DBUS_INTERFACE, sender_keyword='_debmarshal_sender',
-                       in_signature='sassss', out_signature='s')
+                       in_signature='sasssss', out_signature='s')
   @_coerceDbusArgs
-  @utils.withLockfile('debmarshal-domlist', fcntl.LOCK_EX)
-  def createDomain(self, memory, disks, network, mac, hypervisor,
+  @debmarshal.utils.withLockfile('debmarshal-domlist', fcntl.LOCK_EX)
+  def createDomain(self, memory, disks, network, mac, hypervisor, arch,
                    _debmarshal_sender=None):
     """Create a virtual machine domain.
 
@@ -262,6 +329,8 @@ class Privops(dbus.service.Object):
         test suite, it is the caller's responsibility to keep track of
         that when destroyDomain is called later. Currently only qemu
         is supported.
+      arch: The CPU architecture for the VM, or an empty string if the
+        architecture should be the same as that of the host.
 
     Returns:
       The name of the new domain.
@@ -282,7 +351,8 @@ class Privops(dbus.service.Object):
                       memory=memory,
                       disks=disks,
                       network=network,
-                      mac=mac)
+                      mac=mac,
+                      arch=arch)
 
     dom_xml = hyper_class.domainXMLString(vm_params)
 
@@ -292,7 +362,7 @@ class Privops(dbus.service.Object):
     # actually exist (loadDomainState already handles the latter
     # case).
     doms = domains.loadDomainState()
-    doms.append((name, utils.getCaller(), hypervisor))
+    doms[(name, hypervisor)] = utils.getCaller()
     utils.storeState(doms, 'debmarshal-domains')
 
     virt_con.createLinux(dom_xml, 0)
@@ -305,7 +375,7 @@ class Privops(dbus.service.Object):
   @dbus.service.method(DBUS_INTERFACE, sender_keyword='_debmarshal_sender',
                        in_signature='ss', out_signature='')
   @_coerceDbusArgs
-  @utils.withLockfile('debmarshal-domlist', fcntl.LOCK_EX)
+  @debmarshal.utils.withLockfile('debmarshal-domlist', fcntl.LOCK_EX)
   def destroyDomain(self, name, hypervisor, _debmarshal_sender=None):
     """Destroy a debmarshal domain.
 
@@ -325,23 +395,151 @@ class Privops(dbus.service.Object):
     virt_con = hyper_class.open()
 
     doms = domains.loadDomainState()
-    for dom in doms:
-      if dom[0] == name and dom[2] == hypervisor:
-        break
-    else:
+    if (name, hypervisor) not in doms:
       raise errors.DomainNotFound("Domain %s does not exist." % name)
 
-    if utils.getCaller() not in (0, dom[1]):
+    if utils.getCaller() not in (0, doms[(name, hypervisor)]):
       raise errors.AccessDenied("Domain %s is not owned by UID %d." %
                                 (name, utils.getCaller()))
 
     virt_dom = virt_con.lookupByName(name)
     virt_dom.destroy()
 
-    doms.remove(dom)
+    del doms[(name, hypervisor)]
     utils.storeState(doms, 'debmarshal-domains')
 
     utils.caller = None
+
+  @_resetExitTimer
+  @dbus.service.method(DBUS_INTERFACE, sender_keyword='_debmarshal_sender',
+                       in_signature='sa{sv}a{sv}', out_signature='')
+  @_coerceDbusArgs
+  @_asyncCall
+  def generateImage(self, distribution, base_config, custom_config,
+                    _debmarshal_sender=None):
+    """Generate a customized disk image for a distribution.
+
+    Both base_config and custom_config vary from distribution to
+    distribution, so consult the distribution's documentation for
+    which configuration options to pass.
+
+    Args:
+      distribution: The name of the distribution to generate a disk
+        for. This should be the name of an entry_point providing
+        debmarshal.distributions.
+      base_config: A dict of configuration options used for the
+        first-stage install of an uncustomized OS.
+      custom_config: A dict of configuration options used for
+        customizing the install.
+
+    Returns:
+      The path to the new customized disk image. Using the
+        debmarshal.distros.base.Distribution interface, it's easy to
+        back this out from the base_config and custom_config, but we
+        return it anyway.
+    """
+    utils.caller = _debmarshal_sender
+
+    dist_class = base.findDistribution(distribution)
+
+    dist = dist_class(base_config, custom_config)
+    dist.createCustom()
+
+    utils.caller = None
+
+  @_resetExitTimer
+  @dbus.service.method(DBUS_INTERFACE, sender_keyword='_debmarshal_sender',
+                       in_signature='sa{sv}a{sv}t', out_signature='s')
+  @_coerceDbusArgs
+  def createSnapshot(self, distribution, base_config, custom_config, size,
+                     _debmarshal_sender=None):
+    """Generate a snapshot of a customized disk image.
+
+    This will generate a memory-backed snapshot of a customized disk
+    image, ideal for throwaway use with VMs.
+
+    The resulting device node will be owned by the caller.
+
+    Args:
+      distribution: The name of the distribution to snapshot.
+      base_config: The config options for the base image.
+      custom_config: The config options for the custom image.
+      size: The size of the snapshot volume in bytes. This does not
+        need to be the same size as the original disk image, and is
+        frequently much smaller.
+
+    Returns:
+      The path to the newly created snapshot image.
+
+    Raises:
+      debmarshal.errors.NotFound: Beacuse this is not an asynchronous
+        call, and is assumed to return quickly, this exception is
+        raised if the customized disk image does not already exist.
+    """
+    utils.caller = _debmarshal_sender
+
+    dist_class = base.findDistribution(distribution)
+
+    dist = dist_class(base_config, custom_config)
+
+    if not os.path.exists(dist.customPath()):
+      raise errors.NotFound(
+        "The customized disk image for this configuration does not exist")
+
+    snapshot = dist.customCow(size)
+    os.chown(snapshot, utils.getCaller(), -1)
+
+    utils.caller = None
+
+    return snapshot
+
+  @_resetExitTimer
+  @dbus.service.method(DBUS_INTERFACE, sender_keyword='_debmarshal_sender',
+                       in_signature='s', out_signature='')
+  @_coerceDbusArgs
+  def cleanupSnapshot(self, snapshot, _debmarshal_sender=None):
+    """Cleanup a snapshot image.
+
+    The snapshot must be owned by the calling user.
+
+    Args:
+      snapshot: Path to the snapshot image.
+
+    Raises:
+      debmarshal.errors.AccessDenied: Raised if the caller does not
+        own the passed in snapshot
+    """
+    utils.caller = _debmarshal_sender
+
+    if os.stat(snapshot).st_uid not in (0, utils.getCaller()):
+      raise errors.AccessDenied("The caller does not own snapshot '%s'" %
+                                snapshot)
+
+    table = base.captureCall(['dmsetup', 'table', snapshot])
+    origin_dev = table.split()[3]
+    assert origin_dev.split(':')[0] == '7'
+
+    base.cleanupCow(snapshot)
+    base.cleanupLoop('/dev/loop%s' % origin_dev.split(':')[1])
+
+    utils.caller = None
+
+
+_callback = None
+
+
+class Callback(dbus.service.Object):
+  """Simple object for receiving a callback from the Privops daemon."""
+  @dbus.service.method(DBUS_WAIT_INTERFACE,
+                       in_signature='', out_signature='')
+  def callReturn(self):
+    gobject.idle_add(self._loop.quit)
+
+  @dbus.service.method(DBUS_WAIT_INTERFACE,
+                       in_signature='s', out_signature='')
+  def callError(self, err_val):
+    self._error = err_val
+    gobject.idle_add(self._loop.quit)
 
 
 def call(method, *args):
@@ -357,6 +555,39 @@ def call(method, *args):
   proxy = dbus.SystemBus().get_object(DBUS_BUS_NAME, DBUS_OBJECT_PATH)
   return utils.coerceDbusType(proxy.get_dbus_method(
       method, dbus_interface=DBUS_INTERFACE)(*args))
+
+def callWait(method, *args):
+  """Call a privileged operation, and wait for it to return.
+
+  For privileged operations which take a long time (and don't need to
+  return a value), this will call the operation, and then spin up a
+  main loop to wait for a method call indicating that the operation
+  completed.
+
+  Methods called through callWait can not return anything.
+
+  Args:
+    method: The name of the method to call.
+    *args: The arguments to pass to the method.
+  """
+  global _callback
+
+  glib.DBusGMainLoop(set_as_default=True)
+  bus = dbus.SystemBus()
+
+  call(method, *args)
+
+  # dbus gets snippy if you initialize multiple objects bound to a
+  # single object path, so we'll just reuse one.
+  if not _callback:
+    _callback = Callback(bus, DBUS_WAIT_OBJECT_PATH)
+  loop = gobject.MainLoop()
+  _callback._error = None
+  _callback._loop = loop
+  loop.run()
+
+  if _callback._error:
+    raise dbus.exceptions.DBusException(_callback._error)
 
 
 def _maybeExit(loop):
@@ -396,6 +627,11 @@ def main():
   DBUS_OBJECT_PATH, connecting it to a service with DBUS_BUS_NAME on
   the system bus.
   """
+  # If the daemon is started through a DBus service file, the value of
+  # PATH is empty enough to cause problems, so we'll just set it to a
+  # new value.
+  os.environ['PATH'] = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
+
   glib.DBusGMainLoop(set_as_default=True)
   name = dbus.service.BusName(DBUS_BUS_NAME, dbus.SystemBus())
   dbus_obj = Privops(name, DBUS_OBJECT_PATH)
