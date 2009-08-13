@@ -31,6 +31,13 @@ case "$1" in
 # the need to explicitly declare an http_proxy to the installer.
 # apt-get and d-i have issues with pipelining to squid caches - proxying
 # this way avoids those issues.
+#
+# You may set variables in /etc/default/debmarshal and regenerate using
+#    dpkg-reconfigure debmarshal-debian-proxy
+#
+# Variables used:
+#   DEBIAN     - hostname of a Debian archive, replacing ftp.us.debian.org
+#
 
 NameVirtualHost *:80
 <VirtualHost *:80>
