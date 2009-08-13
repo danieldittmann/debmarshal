@@ -55,7 +55,7 @@ EOF
   CacheLastModifiedFactor 0.1
   CacheDefaultExpire 1
 EOF
-            elif apache2 -v | grep '2\.2' ; then
+            else
                 cat >>$CONFIG <<EOF
   # TODO: cache configuration options here
 EOF
