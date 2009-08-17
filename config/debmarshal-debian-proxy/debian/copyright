@@ -1,6 +1,6 @@
 This package was debianized by:
 
-    Evan Broder <ebroder@google.com> on Thu, 09 Jul 2009 11:52:49 -0700
+    Drake Diedrich <dld@google.com> on Mon, 10 Aug 2009 11:52:49 -0700
 
 It was downloaded from:
 
@@ -8,7 +8,7 @@ It was downloaded from:
 
 Upstream Author:
 
-    Evan Broder <ebroder@google.com>
+    Drake Diedrich <dld@google.com>
 
 Copyright:
 
@@ -34,11 +34,7 @@ Public License can be found in `/usr/share/common-licenses/GPL-2'.
 
 The Debian packaging is:
 
-    Copyright (C) 2009, Evan Broder <broder@mit.edu>
+    Copyright (C) 2009, Evan Broder <dld@google.com>
 
 and is licensed under the GPL, see above.
 
-debmarshal/third/ipaddr.py and debmarshal/third/ipaddr_test.py are
-released under the Apache License, version 2.0. On Debian systems, the
-complete text of this license can be found in
-`/usr/share/common-licenses/Apache-2.0`.

@@ -1,19 +1,5 @@
-debmarshal-testing (0.0.0r342-2) unstable; urgency=low
+debmarshal-debian-proxy (0.1) unstable; urgency=low
 
-  * Added debmarshal-debian-proxy providing an Apache configuration to
-    passthrough Debian repository requests
+  * Keep just the debmarshal-debian-proxy package.
 
- -- Drake Diedrich <dld@google.com>  Tue, 11 Aug 2009 10:25:09 -0700
-
-debmarshal-testing (0.0.0r342-1) unstable; urgency=low
-
-  * New subversion snapshot.
-  * Add new dependencies.
-
- -- Evan Broder <ebroder@google.com>  Tue, 11 Aug 2009 11:38:25 -0700
-
-debmarshal-testing (0.0.0r179-1) unstable; urgency=low
-
-  * Initial Debianization.
-
- -- Evan Broder <ebroder@google.com>  Thu, 09 Jul 2009 11:47:13 -0700
+ -- Drake Diedrich <dld@google.com>  Mon, 17 Aug 2009 13:01:08 -0700
