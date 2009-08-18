@@ -37,7 +37,7 @@ case "$1" in
 #    dpkg-reconfigure debmarshal-ubuntu-proxy
 #
 # Variables used:
-#   UBUNTU     - hostname of a ubuntu archive, replacing ftp.us.ubuntu.org
+#   UBUNTU     - hostname of a ubuntu archive, replacing us.archive.ubuntu.com
 #
 
 NameVirtualHost *:80
