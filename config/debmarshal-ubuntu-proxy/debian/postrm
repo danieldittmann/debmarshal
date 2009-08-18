@@ -5,13 +5,13 @@ set -e
 
 case "$1" in
     purge|remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
-	a2dissite debian-proxy
+	a2dissite ubuntu-proxy
         if which invoke-rc.d >/dev/null 2>&1; then
             invoke-rc.d apache2 force-reload
         else
             /etc/init.d/apache2 force-reload
         fi
-	rm -f /etc/apache2/sites-available/debian-proxy
+	rm -f /etc/apache2/sites-available/ubuntu-proxy
         ;;
 
     *)
