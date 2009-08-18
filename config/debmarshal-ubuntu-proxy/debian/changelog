@@ -1,0 +1,5 @@
+debmarshal-debian-proxy (0.1) unstable; urgency=low
+
+  * Keep just the debmarshal-debian-proxy package.
+
+ -- Drake Diedrich <dld@google.com>  Mon, 17 Aug 2009 13:01:08 -0700

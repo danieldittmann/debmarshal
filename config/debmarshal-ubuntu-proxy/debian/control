@@ -1,0 +1,19 @@
+Source: debmarshal-debian-proxy
+Section: devel
+Priority: extra
+Maintainer: Drake Diedrich <dld@google.com>
+Build-Depends: debhelper
+Standards-Version: 3.8.0
+Homepage: http://code.google.com/p/debmarshal/
+
+Package: debmarshal-debian-proxy
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${python:Depends}, apache2
+Provides: debmarshal-debian-lenny-amd64, debmarshal-debian-lenny-i386,
+ debmarshal-debian-sid-amd64, debmarshal-debian-sid-i386
+Description: Provides Debian archive servers to Debmarshal virtual clients
+ This package provides a pass through proxy to Debmarshal clients, so
+ they can directly access ftp.us.debian.org as if they
+ were directly connected to the internet.  As an alternative to this, you
+ can have a local mirror, possibly debmarshal-managed for offline or
+ testing against particular releases.
