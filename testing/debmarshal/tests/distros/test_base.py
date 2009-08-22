@@ -23,10 +23,8 @@ __authors__ = [
 ]
 
 
-import glob
 import os
 import shutil
-import stat
 import subprocess
 import tempfile
 import unittest
@@ -105,76 +103,6 @@ class TestCaptureCall(mox.MoxTestBase):
     self.mox.ReplayAll()
 
     self.assertRaises(subprocess.CalledProcessError, base.captureCall, ['ls'])
-
-
-class TestCreateNewLoopDev(mox.MoxTestBase):
-  def testSuccess(self):
-    self.mox.StubOutWithMock(glob, 'glob')
-    self.mox.StubOutWithMock(os, 'mknod')
-
-    glob.glob('/dev/loop*').AndReturn(['/dev/loop%d' % i for i in xrange(8)])
-    os.mknod('/dev/loop8', stat.S_IFBLK | 0600, os.makedev(7, 8)).AndRaise(
-      OSError(17, 'File exists'))
-
-    glob.glob('/dev/loop*').AndReturn(['/dev/loop%d' % i for i in xrange(9)])
-    os.mknod('/dev/loop9', stat.S_IFBLK | 0600, os.makedev(7, 9))
-
-    self.mox.ReplayAll()
-
-    base._createNewLoopDev()
-
-  def testFailure(self):
-    self.mox.StubOutWithMock(glob, 'glob')
-    self.mox.StubOutWithMock(os, 'mknod')
-
-    glob.glob('/dev/loop*').AndReturn(['/dev/loop0'])
-    os.mknod('/dev/loop1', stat.S_IFBLK | 0600, os.makedev(7, 1)).AndRaise(
-      OSError(13, 'Permission denied'))
-
-    self.mox.ReplayAll()
-
-    self.assertRaises(OSError,
-                      base._createNewLoopDev)
-
-
-class TestLoop(mox.MoxTestBase):
-  def testSetup(self):
-    self.mox.StubOutWithMock(base, 'captureCall')
-
-    base.captureCall(['losetup', '--show', '--find', 'foo']).AndReturn(
-        "/dev/loop0\n")
-
-    self.mox.ReplayAll()
-
-    self.assertEqual(base.setupLoop('foo'), '/dev/loop0')
-
-  def testSetupError(self):
-    self.mox.StubOutWithMock(base, 'captureCall')
-
-    base.captureCall(['losetup', '--show', '--find', 'foo']).\
-        MultipleTimes().\
-        AndRaise(errors.CalledProcessError(
-          255,
-          ['losetup'],
-          'losetup: could not find any free loop device\n'))
-
-    self.mox.StubOutWithMock(base, '_createNewLoopDev')
-    base._createNewLoopDev().MultipleTimes()
-
-    self.mox.ReplayAll()
-
-    self.assertRaises(errors.CalledProcessError,
-                      base.setupLoop,
-                      'foo')
-
-  def testCleanup(self):
-    self.mox.StubOutWithMock(base, 'captureCall')
-
-    base.captureCall(['losetup', '-d', '/dev/loop0'])
-
-    self.mox.ReplayAll()
-
-    base.cleanupLoop('/dev/loop0')
 
 
 class TestCreateSparseFile(unittest.TestCase):
