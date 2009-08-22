@@ -70,8 +70,7 @@ def _validateHostname(name):
     raise errors.InvalidInput('Invalid hostname: %s' % name)
 
 
-@utils.withoutLibvirtError
-def loadNetworkState(virt_con=None):
+def loadNetworkState():
   """Load state for any networks previously created by debmarshal.
 
   State is written to /var/run/debmarshal-networks as a pickle. Ubuntu
@@ -83,12 +82,6 @@ def loadNetworkState(virt_con=None):
   exists, we assume that it was deleted outside of debmarshal, and we
   erase our record of it.
 
-  Args:
-    virt_con: A non-read-only libvirt.virConnect instance. If one
-      isn't passed in, we'll open one of our own. It doesn't really
-      matter which libvirt driver you connect to, because all of them
-      share virtual networks.
-
   Returns:
     A list of networks. Each network is a tuple of (network_name,
       owner_uid, gateway_ip_address)
@@ -97,13 +90,10 @@ def loadNetworkState(virt_con=None):
   if not networks:
     networks = {}
 
-  if not virt_con:
-    virt_con = libvirt.open('qemu:///system')
+  bridges = set(_listBridges())
 
   for n in networks.keys():
-    try:
-      virt_con.networkLookupByName(n)
-    except libvirt.libvirtError:
+    if n not in bridges:
       del networks[n]
 
   return networks

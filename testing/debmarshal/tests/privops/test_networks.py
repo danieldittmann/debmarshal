@@ -65,43 +65,20 @@ class TestValidateHostname(mox.MoxTestBase):
 
 class TestLoadNetworkState(mox.MoxTestBase):
   """Test loading the network state from /var/run/debmarshal-networks"""
-  def testOpeningLibvirtConnection(self):
-    """Make sure that loadNetworkState can open its own connection to
-    libvirt if needed"""
-    self.mox.StubOutWithMock(utils, '_clearLibvirtError')
-    utils._clearLibvirtError()
-
-    self.mox.StubOutWithMock(utils, 'loadState')
-    utils.loadState('debmarshal-networks').AndReturn(None)
-
-    self.mox.StubOutWithMock(libvirt, 'open')
-    virt_con = self.mox.CreateMock(libvirt.virConnect)
-    libvirt.open(mox.IgnoreArg()).AndReturn(virt_con)
-
-    self.mox.ReplayAll()
-
-    self.assertEqual(networks.loadNetworkState(), {})
-
   def testNetworkExistenceTest(self):
     """Make sure that networks get dropped from the list in the state
     file if they don't still exist. And that they're kept if they do"""
-    self.mox.StubOutWithMock(utils, '_clearLibvirtError')
-    utils._clearLibvirtError()
-
     self.mox.StubOutWithMock(utils, 'loadState')
     utils.loadState('debmarshal-networks').AndReturn(
       {'foo': 500,
        'bar': 501})
 
-    virt_con = self.mox.CreateMock(libvirt.virConnect)
-
-    virt_con.networkLookupByName('foo').InAnyOrder()
-    virt_con.networkLookupByName('bar').InAnyOrder().AndRaise(
-        libvirt.libvirtError("Network doesn't exist"))
+    self.mox.StubOutWithMock(networks, '_listBridges')
+    networks._listBridges().AndReturn(['virbr0', 'foo'])
 
     self.mox.ReplayAll()
 
-    self.assertEqual(networks.loadNetworkState(virt_con),
+    self.assertEqual(networks.loadNetworkState(),
                      {'foo': 500})
 
   def testTwoBadNetworks(self):
@@ -113,29 +90,18 @@ class TestLoadNetworkState(mox.MoxTestBase):
             'spam': 500,
             'eggs': 500}
 
-    self.mox.StubOutWithMock(utils, '_clearLibvirtError')
-    utils._clearLibvirtError()
-
     self.mox.StubOutWithMock(utils, 'loadState')
     utils.loadState('debmarshal-networks').AndReturn(dict(nets))
 
-    virt_con = self.mox.CreateMock(libvirt.virConnect)
-
-    virt_con.networkLookupByName('foo').InAnyOrder()
-    virt_con.networkLookupByName('bar').InAnyOrder()
-    virt_con.networkLookupByName('baz').InAnyOrder().AndRaise(
-        libvirt.libvirtError("Network doens't exist"))
-    virt_con.networkLookupByName('quux').InAnyOrder()
-    virt_con.networkLookupByName('spam').InAnyOrder().AndRaise(
-        libvirt.libvirtError("Network doesn't exist"))
-    virt_con.networkLookupByName('eggs').InAnyOrder()
+    self.mox.StubOutWithMock(networks, '_listBridges')
+    networks._listBridges().AndReturn(['foo', 'bar', 'quux', 'eggs'])
 
     self.mox.ReplayAll()
 
     del nets['baz']
     del nets['spam']
 
-    self.assertEqual(networks.loadNetworkState(virt_con),
+    self.assertEqual(networks.loadNetworkState(),
                      nets)
 
 
