@@ -91,7 +91,7 @@ class TestCreateNetwork(mox.MoxTestBase):
     libvirt.open(mox.IgnoreArg()).AndReturn(self.virt_con)
 
     self.mox.StubOutWithMock(networks, '_findUnusedName')
-    networks._findUnusedName(self.virt_con).AndReturn(self.name)
+    networks._findUnusedName().AndReturn(self.name)
 
     self.mox.StubOutWithMock(networks, '_findUnusedNetwork')
     networks._findUnusedNetwork(self.virt_con, len(self.hosts)).\

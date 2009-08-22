@@ -161,21 +161,12 @@ class TestGenNetworkXML(mox.MoxTestBase):
 class TestFindUnusedName(mox.MoxTestBase):
   """Test privops.networks._findUnusedName."""
   def test(self):
-    virt_con = self.mox.CreateMock(libvirt.virConnect)
-
-    self.mox.StubOutWithMock(utils, '_clearLibvirtError')
-    utils._clearLibvirtError()
-
-    name = 'debmarshal-0'
-    virt_con.networkLookupByName(name)
-
-    name = 'debmarshal-1'
-    virt_con.networkLookupByName(name).AndRaise(libvirt.libvirtError(
-      "Network doesn't exist."))
+    self.mox.StubOutWithMock(networks, '_listBridges')
+    networks._listBridges().AndReturn(['virbr0', 'debmarshal-0'])
 
     self.mox.ReplayAll()
 
-    self.assertEqual(networks._findUnusedName(virt_con), name)
+    self.assertEqual(networks._findUnusedName(), 'debmarshal-1')
 
 
 class TestFindUnusedNetwork(mox.MoxTestBase):

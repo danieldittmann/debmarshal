@@ -149,7 +149,7 @@ class Privops(dbus.service.Object):
     # supposed to be the default for root.
     virt_con = libvirt.open('qemu:///system')
 
-    net_name = networks._findUnusedName(virt_con)
+    net_name = networks._findUnusedName()
     net_gateway, net_mask = networks._findUnusedNetwork(virt_con, len(hosts))
 
     net_hosts = {}

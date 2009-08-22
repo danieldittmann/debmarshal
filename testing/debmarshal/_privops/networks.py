@@ -154,8 +154,7 @@ def _genNetworkXML(name, gateway, netmask, hosts):
   return etree.tostring(xml)
 
 
-@utils.withoutLibvirtError
-def _findUnusedName(virt_con):
+def _findUnusedName():
   """Find a name for a new debmarshal network.
 
   This picks a name for a new debmarshal network by simply
@@ -165,23 +164,16 @@ def _findUnusedName(virt_con):
   To prevent races, this function should be called by a function that
   has taken out the debmarshal-netlist lock exclusively.
 
-  Args:
-    virt_con: A read-only (or read-write) libvirt.virConnect instance
-      connected to any driver.
-
   Returns:
     An unused name to use for creating a new network.
   """
-  n = 0
-  while True:
+  bridges = _listBridges()
+
+  for n in itertools.count(0):
     name = 'debmarshal-%s' % n
 
-    try:
-      virt_con.networkLookupByName(name)
-    except libvirt.libvirtError:
+    if name not in bridges:
       return name
-
-    n += 1
 
 
 @utils.withoutLibvirtError
