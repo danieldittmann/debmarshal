@@ -46,8 +46,11 @@ def _listBridges():
     A list of network bridges that exist on the host system.
   """
   out = u.captureCall(['brctl', 'show'])
-  for line in out.strip().split('\n')[1:]:
-    yield line.split()[0]
+  lines = out.strip().split('\n')
+  for line in lines[1:]:
+    net = line.split()[0]
+    if net.startswith('debmarshal-'):
+      yield net
 
 
 _hostname_re = re.compile(

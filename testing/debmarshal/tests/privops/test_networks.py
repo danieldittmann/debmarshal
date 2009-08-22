@@ -40,11 +40,12 @@ class TestListBridges(mox.MoxTestBase):
     self.mox.StubOutWithMock(debmarshal.utils, 'captureCall')
     debmarshal.utils.captureCall(['brctl', 'show']).AndReturn(
       'bridge name\tbridge id\t\tSTP enabled\tinterfaces\n'
-      'pan0\t\t8000.000000000000\tno\t\t\n')
+      'pan0\t\t8000.000000000000\tno\t\t\n'
+      'debmarshal-0\t8000.000000000000\tno\t\t\n')
 
     self.mox.ReplayAll()
 
-    self.assertEqual(list(networks._listBridges()), ['pan0'])
+    self.assertEqual(list(networks._listBridges()), ['debmarshal-0'])
 
 
 class TestValidateHostname(mox.MoxTestBase):
