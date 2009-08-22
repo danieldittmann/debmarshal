@@ -36,6 +36,18 @@ from lxml import etree
 from debmarshal import errors
 from debmarshal import ip
 from debmarshal._privops import utils
+import debmarshal.utils as u
+
+
+def _listBridges():
+  """Return a generator containing all network bridges.
+
+  Yields:
+    A list of network bridges that exist on the host system.
+  """
+  out = u.captureCall(['brctl', 'show'])
+  for line in out.strip().split('\n')[1:]:
+    yield line.split()[0]
 
 
 _hostname_re = re.compile(

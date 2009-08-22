@@ -32,6 +32,19 @@ from lxml import etree
 from debmarshal import errors
 from debmarshal._privops import networks
 from debmarshal._privops import utils
+import debmarshal.utils
+
+
+class TestListBridges(mox.MoxTestBase):
+  def test(self):
+    self.mox.StubOutWithMock(debmarshal.utils, 'captureCall')
+    debmarshal.utils.captureCall(['brctl', 'show']).AndReturn(
+      'bridge name\tbridge id\t\tSTP enabled\tinterfaces\n'
+      'pan0\t\t8000.000000000000\tno\t\t\n')
+
+    self.mox.ReplayAll()
+
+    self.assertEqual(list(networks._listBridges()), ['pan0'])
 
 
 class TestValidateHostname(mox.MoxTestBase):
