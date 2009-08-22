@@ -26,11 +26,13 @@ __authors__ = [
 import fcntl
 import os
 import posix
+import subprocess
 import unittest
 
 import mox
 
 from debmarshal import utils
+from debmarshal import errors
 
 
 class TestDiskIsBlockDevice(mox.MoxTestBase):
@@ -120,3 +122,76 @@ class TestParseKBytes(unittest.TestCase):
   def testK(self):
     """Make sure that parseKBytes does the right thing with kilobytes."""
     self.assertEqual(utils.parseKBytes("12K"), 12)
+
+
+class TestCaptureCall(mox.MoxTestBase):
+  def testPassStdin(self):
+    mock_p = self.mox.CreateMock(subprocess.Popen)
+    self.mox.StubOutWithMock(subprocess, 'Popen', use_mock_anything=True)
+
+    subprocess.Popen(['ls'],
+                     stdin='foo',
+                     stdout=subprocess.PIPE,
+                     stderr=subprocess.STDOUT).AndReturn(
+        mock_p)
+    mock_p.communicate(None).AndReturn(('bar', 'baz'))
+    mock_p.returncode = 0
+
+    self.mox.ReplayAll()
+
+    self.assertEqual(utils.captureCall(['ls'], stdin='foo'),
+                     'bar')
+
+  def testPassStdout(self):
+    mock_p = self.mox.CreateMock(subprocess.Popen)
+    self.mox.StubOutWithMock(subprocess, 'Popen', use_mock_anything=True)
+
+    subprocess.Popen(['ls'],
+                     stdin=subprocess.PIPE,
+                     stdout='blah',
+                     stderr=subprocess.STDOUT).AndReturn(
+        mock_p)
+    mock_p.communicate(None).AndReturn((None, None))
+    mock_p.returncode = 0
+
+    self.mox.ReplayAll()
+
+    self.assertEqual(utils.captureCall(['ls'], stdout='blah'),
+                     None)
+
+  def testPassStderr(self):
+    mock_p = self.mox.CreateMock(subprocess.Popen)
+    self.mox.StubOutWithMock(subprocess, 'Popen', use_mock_anything=True)
+
+    subprocess.Popen(['ls'],
+                     stdin=subprocess.PIPE,
+                     stdout=subprocess.PIPE,
+                     stderr='foo').AndReturn(
+        mock_p)
+    mock_p.communicate(None).AndReturn(('bar', 'baz'))
+    mock_p.returncode = 0
+
+    self.mox.ReplayAll()
+
+    self.assertEqual(utils.captureCall(['ls'], stderr='foo'),
+                     'bar')
+
+  def testError(self):
+    mock_p = self.mox.CreateMock(subprocess.Popen)
+    self.mox.StubOutWithMock(subprocess, 'Popen', use_mock_anything=True)
+
+    subprocess.Popen(['ls'],
+                     stdin=subprocess.PIPE,
+                     stdout=subprocess.PIPE,
+                     stderr=subprocess.STDOUT).AndReturn(
+        mock_p)
+    mock_p.communicate(None).AndReturn((None, None))
+    mock_p.returncode = 255
+
+    self.mox.ReplayAll()
+
+    self.assertRaises(subprocess.CalledProcessError, utils.captureCall, ['ls'])
+
+
+if __name__ == '__main__':
+  unittest.main()
