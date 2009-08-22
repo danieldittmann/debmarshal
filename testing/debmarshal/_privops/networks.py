@@ -179,8 +179,7 @@ def _findUnusedName():
       return name
 
 
-@utils.withoutLibvirtError
-def _findUnusedNetwork(virt_con, host_count):
+def _findUnusedNetwork(host_count):
   """Find an IP address network for a new debmarshal network.
 
   This picks a gateway IP address by simply incrementing the subnet
@@ -200,8 +199,6 @@ def _findUnusedNetwork(virt_con, host_count):
   require some pretty impressive hardware.
 
   Args:
-    virt_con: A read-only (or read-write) libvirt.virConnect instance
-      connected to any driver.
     host_count: How many hosts will be attached to this network.
 
   Returns:
@@ -211,12 +208,12 @@ def _findUnusedNetwork(virt_con, host_count):
     debmarshal.errors.NoAvailableIPs: Raised if no suitable subnet
       could be found.
   """
-  # TODO(ebroder): Include the netmask of the libvirt networks when
+  # TODO(ebroder): Include the netmask of the existing networks when
   #   calculating available IP address space
   net_gateways = set()
-  for net in virt_con.listNetworks() + virt_con.listDefinedNetworks():
-    net_xml = etree.fromstring(virt_con.networkLookupByName(net).XMLDesc(0))
-    net_gateways.add(net_xml.xpath('string(/network/ip/@address)'))
+  for net in _listBridges():
+    # ifdata is part of moreutils (http://kitenet.net/~joey/code/moreutils/)
+    net_gateways.add(u.captureCall(['ifdata', '-pa', net]).strip())
 
   for i in xrange(256):
     # TODO(ebroder): Allow for configuring which subnet to allocate IP

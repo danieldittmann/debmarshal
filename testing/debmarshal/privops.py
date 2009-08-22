@@ -150,7 +150,7 @@ class Privops(dbus.service.Object):
     virt_con = libvirt.open('qemu:///system')
 
     net_name = networks._findUnusedName()
-    net_gateway, net_mask = networks._findUnusedNetwork(virt_con, len(hosts))
+    net_gateway, net_mask = networks._findUnusedNetwork(len(hosts))
 
     net_hosts = {}
     host_addr = ip.IP(net_gateway) + 1

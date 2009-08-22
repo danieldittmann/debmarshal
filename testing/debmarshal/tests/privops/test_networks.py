@@ -173,47 +173,40 @@ class TestFindUnusedName(mox.MoxTestBase):
 class TestFindUnusedNetwork(mox.MoxTestBase):
   def testSuccessfulFind(self):
     """Test privops.networks._findUnusedNetwork finding an available network"""
-    nets = ['default', 'debmarshal-0', 'debmarshal-3']
+    nets = ['debmarshal-0', 'debmarshal-3']
 
-    virt_con = self.mox.CreateMock(libvirt.virConnect)
+    self.mox.StubOutWithMock(networks, '_listBridges')
+    networks._listBridges().AndReturn(nets)
 
-    virt_con.listNetworks().AndReturn(nets)
-    virt_con.listDefinedNetworks().AndReturn([])
+    self.mox.StubOutWithMock(debmarshal.utils, 'captureCall')
 
     for i, net in enumerate(nets):
-      virt_net = self.mox.CreateMock(libvirt.virNetwork)
-      virt_con.networkLookupByName(net).AndReturn(virt_net)
-      virt_net.XMLDesc(0).AndReturn(
-        '<network>' +
-        ('<ip address="169.254.%s.1" netmask="255.255.255.0" />' % i) +
-        '</network>')
+      debmarshal.utils.captureCall(['ifdata', '-pa', net]).\
+          InAnyOrder().\
+          AndReturn('169.254.%d.1' % i)
 
     self.mox.ReplayAll()
 
-    self.assertEqual(networks._findUnusedNetwork(virt_con, 8),
-                     ('169.254.3.1', '255.255.255.0'))
+    self.assertEqual(networks._findUnusedNetwork(8),
+                     ('169.254.2.1', '255.255.255.0'))
 
   def testNoFind(self):
     """privops.networks_findUnusedNetwork errors when no network available"""
     nets = ['debmarshal-%s' % i for i in xrange(256)]
 
-    virt_con = self.mox.CreateMock(libvirt.virConnect)
+    self.mox.StubOutWithMock(networks, '_listBridges')
+    networks._listBridges().AndReturn(nets)
 
-    virt_con.listNetworks().AndReturn(nets)
-    virt_con.listDefinedNetworks().AndReturn([])
+    self.mox.StubOutWithMock(debmarshal.utils, 'captureCall')
 
     for i, net in enumerate(nets):
-      virt_net = self.mox.CreateMock(libvirt.virNetwork)
-      virt_con.networkLookupByName(net).AndReturn(virt_net)
-      virt_net.XMLDesc(0).AndReturn(
-        '<network>' +
-        ('<ip address="169.254.%s.1" netmask="255.255.255.0" />' % i) +
-        '</network>')
+      debmarshal.utils.captureCall(['ifdata', '-pa', net]).\
+          InAnyOrder().\
+          AndReturn('169.254.%d.1' % i)
 
     self.mox.ReplayAll()
 
-    self.assertRaises(errors.NoAvailableIPs, networks._findUnusedNetwork,
-                      virt_con, 8)
+    self.assertRaises(errors.NoAvailableIPs, networks._findUnusedNetwork, 8)
 
 
 if __name__ == '__main__':

@@ -94,7 +94,7 @@ class TestCreateNetwork(mox.MoxTestBase):
     networks._findUnusedName().AndReturn(self.name)
 
     self.mox.StubOutWithMock(networks, '_findUnusedNetwork')
-    networks._findUnusedNetwork(self.virt_con, len(self.hosts)).\
+    networks._findUnusedNetwork(len(self.hosts)).\
         AndReturn((self.gateway, '255.255.255.0'))
 
     self.mox.StubOutWithMock(networks, 'loadNetworkState')
