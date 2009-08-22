@@ -225,3 +225,28 @@ def _findUnusedNetwork(host_count):
       return (net, '255.255.255.0')
 
   raise errors.NoAvailableIPs('No unused subnet could be found.')
+
+
+def _setupBridge(iface, ip, mask):
+  """Create and up an ethernet bridge.
+
+  Args:
+    iface: The name of the bridge.
+    gateway: The IP address to listen on.
+    mask: The subnet mask of the gateway.
+  """
+  u.captureCall(['brctl', 'addbr', iface])
+  u.captureCall(['ifconfig', iface,
+                 ip,
+                 'netmask', mask,
+                 'up'])
+
+
+def _teardownBridge(iface):
+  """Down and delete an ethernet bridge.
+
+  Args:
+    iface: The name of the bridge.
+  """
+  u.captureCall(['ifconfig', iface, 'down'])
+  u.captureCall(['brctl', 'delbr', iface])

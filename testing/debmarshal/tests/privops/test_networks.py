@@ -209,5 +209,36 @@ class TestFindUnusedNetwork(mox.MoxTestBase):
     self.assertRaises(errors.NoAvailableIPs, networks._findUnusedNetwork, 8)
 
 
+class TestSetupBridge(mox.MoxTestBase):
+  def test(self):
+    iface = 'debmarshal-0'
+    ip = '169.254.0.1'
+    mask = '255.255.255.0'
+
+    self.mox.StubOutWithMock(debmarshal.utils, 'captureCall')
+
+    debmarshal.utils.captureCall(['brctl', 'addbr', 'debmarshal-0'])
+    debmarshal.utils.captureCall(['ifconfig', iface,
+                                  ip,
+                                  'netmask', mask,
+                                  'up'])
+
+    self.mox.ReplayAll()
+
+    networks._setupBridge(iface, ip, mask)
+
+
+class TestTeardownBridge(mox.MoxTestBase):
+  def test(self):
+    self.mox.StubOutWithMock(debmarshal.utils, 'captureCall')
+
+    debmarshal.utils.captureCall(['ifconfig', 'debmarshal-0', 'down'])
+    debmarshal.utils.captureCall(['brctl', 'delbr', 'debmarshal-0'])
+
+    self.mox.ReplayAll()
+
+    networks._teardownBridge('debmarshal-0')
+
+
 if __name__ == '__main__':
   unittest.main()
