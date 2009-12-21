@@ -36,9 +36,10 @@ import os_utils as ou
 import package_utils as pu
 import release_utils as ru
 import setting_utils as su
-
+import optparse
 
 _new_package = False
+retry_packages = []
 
 
 def IndexPool((src_names, pkg_names), dbs):
@@ -83,7 +84,10 @@ def IndexPool((src_names, pkg_names), dbs):
       file_size = str(os.stat(name).st_size)
       if pool_pkg[pkg] != file_size:
         lg.warning('File ' + name + ' does not match indexed data')
-      return
+      if pkg in retry_packages:
+        lg.info('Re-indexing package '+pkg)
+      else:
+        return
 
     lg.info('Indexing ' + name)
     pool_pkg[pkg] = str(os.stat(name).st_size)
@@ -136,9 +140,38 @@ def _TraversePool():
   os.path.walk('pool', DoTraverse, None)
   return src_names, pkg_names
 
+def _ParseCommandLine():
+  """Parse and check command line options and arguments
 
-def main(repo_dir):
+  This function uses the optparse module to parse the command line
+  options, and it then checks that the command line arguments are
+  well-formed in accordance with the semantics of the script.
+  """
+
+  usage = 'usage: %prog [options] [repos-directory]'
+  version = 'Debmarshall 0.0'
+  parser = optparse.OptionParser(usage=usage, version=version)
+  parser.add_option('-r', '--retry',
+                    dest='retry', metavar='FILE', action='append',
+                    help='read package names to re-index from FILE')
+
+  options, proper = parser.parse_args()
+  return options, proper
+
+def main(options, repo_dir):
   global _new_package
+  global retry_packages
+
+  def DoImport(lines):
+    p = []
+    for line in lines:
+      p.append(line.rstrip('\n'))
+    return p
+
+  # If --retry option was specified, import lists of packages to be retried
+  if options.retry is not None:
+    for retry in options.retry:
+      retry_packages.extend(ou.RunWithFileInput(DoImport, retry))
 
   current_cwd = os.getcwd()
   lu.SetLogConsole()
@@ -159,7 +192,11 @@ def main(repo_dir):
 
 
 if __name__ == '__main__':
-  if len(sys.argv) == 2:
-    main(sys.argv[1])
+  options, proper = _ParseCommandLine()
+  if len(proper) == 1:
+    main(options, proper[0])
   else:
-    main(os.getcwd())
+    main(options, os.getcwd())
+
+
+
