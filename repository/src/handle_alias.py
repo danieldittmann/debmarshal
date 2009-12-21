@@ -48,6 +48,9 @@ def _DoShowLog(alias, dbs):
   alias_db = dbs['aliases']
   au.ShowAliasHistory(alias_db, alias)
 
+def _DoRemoveAlias(alias, dbs):
+  alias_db = dbs['aliases']
+  au.RemoveAlias(alias_db, alias)
 
 def main():
   lu.SetLogConsole()
@@ -71,6 +74,12 @@ def main():
       sys.exit()
     alias = sys.argv[2]
     bu.RunWithDB(['aliases'], _DoShowLog, alias)
+  elif (sys.argv[1]) == 'remove':
+    if len(sys.argv) != 3:
+      lg.error('remove needs an argument: alias')
+      sys.exit()
+    alias = sys.argv[2]
+    bu.RunWithDB(['aliases'], _DoRemoveAlias, alias)
   else:
     lg.error(sys.argv[1] + ' is not a valid command')
 

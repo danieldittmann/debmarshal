@@ -119,3 +119,14 @@ def ShowAliasHistory(alias_db, alias):
   for line in alias_db[alias].split(', '):
     [ts, release] = line.split('_', 1)
     print release + '\t' + time.asctime(time.localtime(float(ts)))
+
+def RemoveAlias(alias_db, alias):
+  """Remove the specified alias
+  """
+
+  _ValidateAlias(alias)
+  if alias not in alias_db:
+    lg.error('There is no such an alias called ' + alias)
+    sys.exit()
+  del alias_db[alias]
+
