@@ -95,6 +95,10 @@ def RunWithTarInput(func, name):
   returning to the caller.
   """
 
+  # Support suffixes that aren't handled directly by tarfile
+  if os.path.isfile(name + '.tar.lzma'):
+    SpawnProgram(['/usr/bin/lzma', '-d', name+'.tar.lzma'])
+
   suffixes = ['', '.tar', '.tar.gz', '.tar.bz2']
 
   for suffix in suffixes:
