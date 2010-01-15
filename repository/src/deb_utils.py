@@ -166,7 +166,7 @@ def BuildDebInfoText(name, attr_dict):
           'Priority', 'Section', 'Installed-Size',
           'Maintainer', 'Architecture', 'Source', 'Version',
           'Replaces', 'Provides', 'Depends', 'Pre-Depends',
-          'Recommends', 'Suggests', 'Conflicts']
+          'Recommends', 'Suggests', 'Conflicts', 'Breaks']
 
   string = ''
   for key in keys:
