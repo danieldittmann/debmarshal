@@ -63,14 +63,15 @@ def GroupByArch(nva_list):
   Architectures attribute in the repository configuration file.
   """
 
+  archs = su.GetSetting(None, 'Architectures').split(', ')
   arch_dict = {}
   for nva in nva_list:
     arch = nva.split('_')[2]
-    if arch not in arch_dict:
-      arch_dict[arch] = []
-    arch_dict[arch].append(nva)
+    if arch in archs or arch == "all":
+      if arch not in arch_dict:
+        arch_dict[arch] = []
+      arch_dict[arch].append(nva)
 
-  archs = su.GetSetting(None, 'Architectures').split(', ')
   if 'all' in arch_dict:
     all = arch_dict['all']
     del arch_dict['all']
@@ -78,6 +79,7 @@ def GroupByArch(nva_list):
       arch_dict.setdefault(arch, [])
       arch_dict[arch].extend(all)
       arch_dict[arch].sort()
+
   return arch_dict
 
 
