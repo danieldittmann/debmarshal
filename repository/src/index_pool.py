@@ -52,11 +52,44 @@ def IndexPool((src_names, pkg_names), dbs):
   indexed, they should never again be moved.
   """
 
+  def CountProgress():
+    """Count the number of items to be processed
+    """
+
+    global source_count, binary_count, source_progress, binary_progress
+    source_count = 0
+    binary_count = 0
+    source_progress = 0
+    binary_progress = 0
+
+    if 'options' in globals() and options.progress:
+      for name in src_names:
+        src = os.path.split(name)[1]
+        if not src in pool_pkg:
+          source_count += 1
+      for name in pkg_names:
+        pkg = os.path.split(name)[1]
+        if pkg in retry_packages or pkg not in pool_pkg:
+          binary_count += 1
+      lg.info('Found ' + str(source_count) + ' source packages and '
+              + str(binary_count) + ' binary packages to index')
+
+  def DisplayProgress(type, text, count, progress):
+    """Display progress information and the specified text if progress
+    is enabled. If not, just display the specified text.
+    """
+    if count == 0 or not options.progress:
+      lg.info(text)
+      return
+
+    percent = int((progress * 100) / count)
+    lg.info('[' + type + ' ' + str(percent) + '%] ' + text)
+
   def IndexSource(name):
     """Index a source package (pool_pkg, src_info)
     """
 
-    global _new_package
+    global _new_package, source_count, source_progress
 
     src = os.path.split(name)[1]
     if src in pool_pkg:
@@ -65,19 +98,20 @@ def IndexPool((src_names, pkg_names), dbs):
         lg.warning('File ' + name + ' does not match indexed data')
       return
 
-    lg.info('Indexing ' + name)
+    DisplayProgress('Sources', 'Indexing ' + name, source_count, source_progress)
     pool_pkg[src] = str(os.stat(name).st_size)
     lines = ou.RunWithFileInput(pu.StripSignature, name)
     attr_dict = pu.ParseAttributes(lines)
     nv = pu.GetSourceID(attr_dict)
     src_info[nv] = du.BuildSrcInfoText(name, attr_dict)
     _new_package = True
+    source_progress += 1
 
   def IndexBinary(name):
     """Index a binary package (pool_pkg, pkg_info, pkg_deps, file_pkg)
     """
 
-    global _new_package
+    global _new_package, binary_count, binary_progress
 
     pkg = os.path.split(name)[1]
     if pkg in pool_pkg:
@@ -89,8 +123,9 @@ def IndexPool((src_names, pkg_names), dbs):
       else:
         return
 
-    lg.info('Indexing ' + name)
+    DisplayProgress('Binaries', 'Indexing ' + name, binary_count, binary_progress)
     pool_pkg[pkg] = str(os.stat(name).st_size)
+    binary_progress += 1
 
     try:
       contents, attr_dict = du.ParseDebInfo(os.path.abspath(name))
@@ -117,6 +152,7 @@ def IndexPool((src_names, pkg_names), dbs):
   file_pkg = dbs['file_pkg']
   pool_pkg = dbs['pool_pkg']
 
+  CountProgress()
   for name in src_names:
     IndexSource(name)
   for name in pkg_names:
@@ -154,6 +190,9 @@ def _ParseCommandLine():
   parser.add_option('-r', '--retry',
                     dest='retry', metavar='FILE', action='append',
                     help='read package names to re-index from FILE')
+  parser.add_option('-p', '--progress',
+                    dest='progress', action='store_true',
+                    help='display progress information')
 
   options, proper = parser.parse_args()
   return options, proper
