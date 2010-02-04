@@ -68,6 +68,9 @@ def _ParseCommandLine():
   parser.add_option('-t', '--track',
                     dest='track', metavar='TRACK',
                     help='prepare release for TRACK')
+  parser.add_option('-c', '--no-implicit-conflicts',
+                    dest='no_conflicts', action='store_true',
+                    help='don\'t check for undeclared package conflicts')
 
   options, proper = parser.parse_args()
   if not (options.release or options.dist or
@@ -253,7 +256,7 @@ def main():
       for arch in arch_dict:
         lg.info('Checking dependency for architecture ' + arch)
         underlying_dict.setdefault(arch, [])
-        vu.CheckDependency(arch_dict[arch], underlying_dict[arch])
+        vu.CheckDependency(arch_dict[arch], underlying_dict[arch], options.no_conflicts)
       bu.RunWithDB(['pkg_deps', 'src_info'], DoVerify, packages)
 
   # Default action: only list the binary packages in the release.

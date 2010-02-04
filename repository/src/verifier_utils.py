@@ -377,7 +377,7 @@ def _ComputeDependency(queue):
     signal.alarm(0)
 
 
-def CheckDependency(pkg_list, underlying=[]):
+def CheckDependency(pkg_list, underlying=[], no_conflicts=False):
   """Verify dependency integrity of a release
   """
 
@@ -391,7 +391,10 @@ def CheckDependency(pkg_list, underlying=[]):
     pkg_deps = du.ParseDependencyTable(dbs['pkg_deps'])
     _BuildDependencyGraph(underlying, pkg_deps)
     pkgs_to_check = _BuildDependencyGraph(pkg_list, pkg_deps)
-    cfl = _BuildConflictList(dbs['file_pkg'], pkgs_to_check)
+    if not no_conflicts:
+      cfl = _BuildConflictList(dbs['file_pkg'], pkgs_to_check)
+    else:
+      cfl = {}
     return cfl, pkgs_to_check
 
   sys.setrecursionlimit(10000)
