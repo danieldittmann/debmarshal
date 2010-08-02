@@ -95,3 +95,42 @@ if (!caller()) {
 } else {
   return 1;
 }
+
+
+__END__
+
+=head1 NAME
+
+debmarshal_distclean - Remove unused debmarshal snapshots from a repository
+                       distribution
+
+=head1 SYNOPSIS
+
+debmarshal_distclean {repository directory} {dist}
+
+ Options:
+   -help            brief help message
+   -man             full documentation
+
+=head1 OPTIONS
+
+=over 8
+
+=item B<-help>
+
+Print a brief help message and exits.
+
+=item B<-man>
+
+Prints the manual page and exits.
+
+=back
+
+=head1 DESCRIPTION
+
+B<debmarshal_distclean> will delete all the numbered distributions in
+{repository-dir}/dists/{dist}/, deleting any that have no symlinks to
+them.  This is used to clean up unused snapshots in a repository
+mirror.  If you have large enough diskspace, you don't have to, and may not want to, clean up ever.
+
+=cut
