@@ -34,7 +34,7 @@ sub distclean($$$) {
     return ["$repository/dists/ does not exist", 2];
   }
   if (! -d "$repository/dists/$dist") {
-    return ["$repository/dists/$dists does not exist",2];
+    return ["$repository/dists/$dist/ does not exist",2];
   }
 
   [undef, 0];
