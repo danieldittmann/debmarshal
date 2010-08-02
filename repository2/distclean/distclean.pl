@@ -22,7 +22,8 @@
 
 use Getopt::Long;
 use Pod::Usage;
-
+use DirHandle;
+use File::Path qw(make_path remove_tree);
 
 sub distclean($$$) {
   my ($repository,$dist,$options) = @_;
@@ -35,6 +36,28 @@ sub distclean($$$) {
   }
   if (! -d "$repository/dists/$dist") {
     return ["$repository/dists/$dist/ does not exist",2];
+  }
+
+  my $d = new DirHandle "$repository/dists/$dist";
+  if (! defined $d) {
+    return ["Could not open $repository/dists/$dist/", 2];
+  }
+
+  my $direntry;
+  my (%directory,%symlink);
+  while (defined($direntry = $d->read)) {
+    if (-l "$repository/dists/$dist/$direntry") {
+      my $link = readlink "$repository/dists/$dist/$direntry";
+      $symlink{$link}++;
+    } elsif (-d "$repository/dists/$dist/$direntry" && $direntry =~ /^\d+$/) {
+      $directory{$direntry}++;
+    }
+  }
+
+  foreach my $snapshot (keys %directory) {
+    if (! defined $symlink{$snapshot}) {
+      remove_tree("$repository/dists/$dist/$snapshot");
+    }
   }
 
   [undef, 0];
