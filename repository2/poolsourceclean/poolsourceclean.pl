@@ -1,9 +1,9 @@
 #!/usr/bin/perl -w
 #
-# pooldebclean.pl {directory} {dist}
+# poolsourceclean.pl {directory} {dist}
 #
 # Scan pool and dist directories and snapshots.
-# Delete any deb that is not in a dist.
+# Delete any source that is not in a dist.
 #
 # Copyright 2010 Google Inc.
 # Licensed under the Apache License, Version 2.0 (the "License");
@@ -136,7 +136,7 @@ sub main {
 
   
 
-  my ($rcmsg,$rc) = @{pooldebclean($inputdir)};
+  my ($rcmsg,$rc) = @{poolsourceclean($inputdir)};
 
   print STDERR $rcmsg if defined $rcmsg;
   $rc;
