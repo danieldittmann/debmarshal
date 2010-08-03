@@ -81,8 +81,8 @@ sub purge_pool($$$$) {
   }
 }
 
-sub pooldebclean($$) {
-  my ($repository,$options) = @_;
+sub pooldebclean($) {
+  my ($repository) = @_;
   my (%packages);
 
   if (! -d $repository) {
@@ -95,7 +95,8 @@ sub pooldebclean($$) {
     return ["$repository/pool/ does not exist",2];
   }
 
-  foreach my $package (packages_files("$repository/dists")) {
+  my (@packages) = packages_files("$repository/dists");
+  foreach my $package (@packages) {
     my $packagefh = new FileHandle $package;
     parse_packages($packagefh,\%packages);
   }
@@ -128,7 +129,10 @@ sub main {
 
   my ($inputdir) = @ARGV;
 
-  my ($rcmsg,$rc) = @{pooldebclean($inputdir, \%options)};
+  
+
+  my ($rcmsg,$rc) = @{pooldebclean($inputdir)};
+
   print STDERR $rcmsg if defined $rcmsg;
   $rc;
 }

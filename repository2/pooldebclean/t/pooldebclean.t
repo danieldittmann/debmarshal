@@ -19,7 +19,7 @@
 # Author: Drake Diedrich <dld@google.com>
 
 use strict;
-use Test::More tests => 5;
+use Test::More tests => 8;
 use File::Temp qw/ tempdir/;
 
 my $pooldebclean = './pooldebclean.pl';
@@ -28,20 +28,31 @@ require_ok($pooldebclean);
 
 my $tempdir =  tempdir( CLEANUP => 1);
 
-is_deeply(pooldebclean("$tempdir/missing",[]),
+is_deeply(pooldebclean("$tempdir/missing"),
 	  ["$tempdir/missing/ does not exist", 2],
 	  "missing repository");
 
-is_deeply(pooldebclean($tempdir,[]),
+is_deeply(pooldebclean($tempdir),
 	  ["$tempdir/dists/ does not exist", 2],
 	  "missing dists");
 
 mkdir "$tempdir/dists";
-is_deeply(pooldebclean($tempdir,[]),
+is_deeply(pooldebclean($tempdir),
 	  ["$tempdir/pool/ does not exist", 2],
 	  "missing pool");
 
 mkdir "$tempdir/pool";
-is_deeply(pooldebclean($tempdir,[]),
+is_deeply(pooldebclean($tempdir),
 	  [undef, 0],
 	  "pooldebclean repository prereqs OK");
+
+open(PACKAGES,">","$tempdir/dists/Packages");
+print PACKAGES "Filename: pool/test.deb\n";
+close(PACKAGES);
+system("touch","$tempdir/pool/test.deb");
+system("touch","$tempdir/pool/test2.deb");
+is_deeply(pooldebclean($tempdir),
+	  [undef, 0],
+	  "pooldebclean parsed Packages");
+ok(-f "$tempdir/pool/test.deb", "referenced deb saved");
+ok(! -f "$tempdir/pool/test2.deb", "unreferenced deb deleted");
