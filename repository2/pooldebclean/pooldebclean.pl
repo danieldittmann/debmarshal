@@ -48,8 +48,23 @@ sub parse_packages($$) {
 }
 
 
-sub purge_pool($$) {
-  my ($repository,$packages) = @_;
+sub purge_pool($$$$) {
+  my ($dir,$path,$packages,$unlink) = @_;
+
+  my $dh = new DirHandle $dir;
+  foreach (my $de = $dh->read) {
+    my $fullpath = "$path/$de";
+    next if $de eq '.' || $de eq '..';
+    if (-d $fullpath) {
+      purge_pool("$dir/$de","$path/$de",$packages,$unlink);
+    } elsif (-f $fullpath) {
+      if ($de =~ /\.deb$/) {
+	if (!defined $packages->{"$dir/$de"}) {
+	  &{$unlink}($fullpath);
+	}
+      }
+    }
+  }
 }
 
 sub pooldebclean($$) {
@@ -70,7 +85,7 @@ sub pooldebclean($$) {
     parse_packages($packagefh,\%packages);
   }
 
-  purge_pool($repository,\%packages);
+  purge_pool("$repository/pool", "pool", \%packages, sub {unlink @_;} );
 
 
   [undef, 0];
