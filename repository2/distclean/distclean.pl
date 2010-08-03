@@ -79,8 +79,8 @@ sub main {
   pod2usage(1) if $options{'help'};
   pod2usage(-verbose => 2) if $options{'man'};
 
-  if (@ARGV != 1) {
-    pod2usage("$0: Repository directory required.\n");
+  if (@ARGV != 2) {
+    pod2usage("$0: Repository directory and dist required.\n");
   }
 
   my ($inputdir) = @ARGV;
