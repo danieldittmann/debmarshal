@@ -5,3 +5,6 @@ test:
 
 coverage:
 	cover -test
+
+clean:
+	rm -rf cover_db
