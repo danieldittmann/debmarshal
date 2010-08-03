@@ -86,7 +86,7 @@ sub main {
   my ($inputdir,$dist) = @ARGV;
 
   my ($rcmsg,$rc) = @{distclean($inputdir, $dist, \%options)};
-  print STDERR $rcmsg;
+  print STDERR $rcmsg if defined $rcmsg;
   $rc;
 }
 
