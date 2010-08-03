@@ -73,7 +73,7 @@ sub purge_pool($$$$) {
       purge_pool("$dir/$de","$path/$de",$packages,$unlink);
     } elsif (-f $fullpath) {
       if ($de =~ /\.deb$/) {
-	if (!defined $packages->{"$dir/$de"}) {
+	if (!defined $packages->{"$path/$de"}) {
 	  &{$unlink}($fullpath);
 	}
       }

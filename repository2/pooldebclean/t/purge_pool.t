@@ -19,7 +19,7 @@
 # Author: Drake Diedrich <dld@google.com>
 
 use strict;
-use Test::More tests => 3;
+use Test::More tests => 2;
 use File::Temp qw/ tempdir/;
 use IO::String;
 
@@ -36,11 +36,12 @@ sub count_remove {
 }
 
 mkdir("$tempdir/pool");
+mkdir("$tempdir/pool/t");
+system("touch","$tempdir/pool/t/test.deb");
+system("touch","$tempdir/pool/t/test2.deb");
+system("touch","$tempdir/pool/t/test2.dsc");
+system("mkfifo","$tempdir/pool/fifo");
+$packages{"pool/t/test2.deb"} = 1;
 purge_pool("$tempdir/pool","pool",\%packages,\&count_remove);
-is_deeply(\%removed, {}, "no Packages files");
-
-system("touch","$tempdir/pool/test.deb");
-%removed = ();
-purge_pool("$tempdir/pool","pool",\%packages,\&count_remove);
-is_deeply(\%removed, { "$tempdir/pool/test.deb" => 1}, "unreferenced deb");
+is_deeply(\%removed, { "$tempdir/pool/t/test.deb" => 1}, "purged pool");
 
