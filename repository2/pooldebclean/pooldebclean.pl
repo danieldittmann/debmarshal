@@ -26,12 +26,23 @@ use DirHandle;
 use File::Path qw(make_path remove_tree);
 
 #
-# Return a list of filehandles of all the Packages files
-# TODO: should be iterator to avoid too many open files
+# Return a list of files of all the Packages files
 #
-sub packages_filehandles($) {
-  my ($repository) = @_;
-  return [];
+sub packages_files($);
+sub packages_files($) {
+  my ($dir) = @_;
+  my (@packages);
+  my $dh = new DirHandle $dir;
+  foreach (my $de = $dh->read) {
+    next if ($de eq '.' || $de eq '..');
+    my $path = "$dir/$de";
+    if (-d $path) {
+      push @packages, packages_files($path);
+    } elsif (-f $path && $de eq 'Packages') {
+      push(@packages,$path);
+    }
+  }
+  @packages;
 }
 
 #
@@ -48,6 +59,7 @@ sub parse_packages($$) {
 }
 
 
+sub purge_pool($$$$);
 sub purge_pool($$$$) {
   my ($dir,$path,$packages,$unlink) = @_;
 
@@ -81,7 +93,8 @@ sub pooldebclean($$) {
     return ["$repository/pool/ does not exist",2];
   }
 
-  foreach my $packagefh (@{&packages_filehandles($repository)}) {
+  foreach my $package (@{&packages_files("$repository/dists")}) {
+    my $packagefh = new FileHandle $package;
     parse_packages($packagefh,\%packages);
   }
 

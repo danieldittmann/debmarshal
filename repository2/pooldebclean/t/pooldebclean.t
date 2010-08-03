@@ -34,12 +34,12 @@ is_deeply(pooldebclean("$tempdir/missing",[]),
 
 is_deeply(pooldebclean($tempdir,[]),
 	  ["$tempdir/dists/ does not exist", 2],
-	  "empty repository");
+	  "missing dists");
 
 mkdir "$tempdir/dists";
 is_deeply(pooldebclean($tempdir,[]),
 	  ["$tempdir/pool/ does not exist", 2],
-	  "missing dist");
+	  "missing pool");
 
 mkdir "$tempdir/pool";
 is_deeply(pooldebclean($tempdir,[]),
