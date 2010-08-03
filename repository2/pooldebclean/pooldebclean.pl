@@ -25,8 +25,31 @@ use Pod::Usage;
 use DirHandle;
 use File::Path qw(make_path remove_tree);
 
+#
+# Return a list of filehandles of all the Packages files
+# TODO: should be iterator to avoid too many open files
+#
+sub packages_filehandles($) {
+  my ($repository) = @_;
+  return [];
+}
+
+#
+# Parse an open filehandle that is a Packages file for the complete
+# list of .debs that are indexed in a repository.
+#
+sub parse_packages($$) {
+  my ($fh,$packages);
+}
+
+
+sub purge_pool($$) {
+  my ($repository,$packages) = @_;
+}
+
 sub pooldebclean($$) {
   my ($repository,$options) = @_;
+  my (%packages);
 
   if (! -d $repository) {
     return ["$repository/ does not exist", 2];
@@ -37,6 +60,13 @@ sub pooldebclean($$) {
   if (! -d "$repository/pool") {
     return ["$repository/pool/ does not exist",2];
   }
+
+  foreach my $packagefh (@{&packages_filehandles($repository)}) {
+    parse_packages($packagefh,\%packages);
+  }
+
+  purge_pool($repository,\%packages);
+
 
   [undef, 0];
 }
