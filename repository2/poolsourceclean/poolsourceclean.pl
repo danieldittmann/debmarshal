@@ -27,25 +27,25 @@ use FileHandle;
 use File::Path qw(make_path remove_tree);
 
 #
-# Return a list of files of all the Packages files
+# Return a list of files of all the Sources files
 #
-sub packages_files($);
-sub packages_files($) {
+sub sources_files($);
+sub sources_files($) {
   my ($dir) = @_;
-  my (@packages);
+  my (@sources);
   my $dh = new DirHandle $dir;
   while (my $de = $dh->read) {
     next if ($de eq '.' || $de eq '..');
     my $path = "$dir/$de";
     if (-d $path) {
-      push @packages, packages_files($path);
+      push @sources, sources_files($path);
     } elsif (-f $path) {
-      if ($de eq 'Packages') {
-	push(@packages,$path);
+      if ($de eq 'Sources') {
+	push(@sources,$path);
       }
     }
   }
-  @packages;
+  @sources;
 }
 
 #
@@ -86,7 +86,7 @@ sub purge_pool($$$$) {
   }
 }
 
-sub pooldebclean($) {
+sub poolsourceclean($) {
   my ($repository) = @_;
   my (%packages);
 
@@ -100,13 +100,13 @@ sub pooldebclean($) {
     return ["$repository/pool/ does not exist",2];
   }
 
-  my (@packages) = packages_files("$repository/dists");
-  foreach my $package (@packages) {
-    my $packagefh = new FileHandle $package;
-    parse_packages($packagefh,\%packages);
+  my (@sources) = sources_files("$repository/dists");
+  foreach my $source (@sources) {
+    my $sourcefh = new FileHandle $source;
+    parse_sources($packagefh,\%sources);
   }
 
-  purge_pool("$repository/pool", "pool", \%packages, sub {unlink @_;} );
+  purge_source_pool("$repository/pool", "pool", \%sources, sub {unlink @_;} );
 
 
   [undef, 0];

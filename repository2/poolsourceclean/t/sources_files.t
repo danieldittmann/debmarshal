@@ -23,18 +23,18 @@ use Test::More tests => 3;
 use File::Temp qw/ tempdir/;
 use IO::String;
 
-my $pooldebclean = './pooldebclean.pl';
+my $poolsourceclean = './poolsourceclean.pl';
 
-require_ok($pooldebclean);
+require_ok($poolsourceclean);
 
 my $tempdir =  tempdir( CLEANUP => 1);
 
-is(packages_files($tempdir),0,"no Packages files");
+is(sources_files($tempdir),0,"no Sources files");
 
 mkdir "$tempdir/sid";
 system("touch","$tempdir/README");
-system("touch","$tempdir/sid/Packages");
+system("touch","$tempdir/sid/Sources");
 symlink("broken","$tempdir/broken.link");
-my @packages = packages_files($tempdir);
-is_deeply(\@packages,["$tempdir/sid/Packages"],
-	"Packages file");
+my @sources = sources_files($tempdir);
+is_deeply(\@sources,["$tempdir/sid/Sources"],
+	"Sources file");
