@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# Test pooldebclean.pl's purge_pool()
+# Test poolsourceclean.pl's purge_source_pool()
 #
 #
 # Copyright 2010 Google Inc.
@@ -23,13 +23,13 @@ use Test::More tests => 2;
 use File::Temp qw/ tempdir/;
 use IO::String;
 
-my $pooldebclean = './pooldebclean.pl';
+my $poolsourceclean = './poolsourceclean.pl';
 
-require_ok($pooldebclean);
+require_ok($poolsourceclean);
 
 my $tempdir =  tempdir( CLEANUP => 1);
 
-my (%packages,%removed);
+my (%sources,%removed);
 sub count_remove {
   my ($filename) = @_;
   $removed{$filename}++;
@@ -37,11 +37,11 @@ sub count_remove {
 
 mkdir("$tempdir/pool");
 mkdir("$tempdir/pool/t");
-system("touch","$tempdir/pool/t/test.deb");
-system("touch","$tempdir/pool/t/test2.deb");
-system("touch","$tempdir/pool/t/test2.dsc");
+system("touch","$tempdir/pool/t/test_1.dsc");
+system("touch","$tempdir/pool/t/test_2.dsc");
+system("touch","$tempdir/pool/t/test_2.deb");
 system("mkfifo","$tempdir/pool/fifo");
-$packages{"pool/t/test2.deb"} = 1;
-purge_pool("$tempdir/pool","pool",\%packages,\&count_remove);
-is_deeply(\%removed, { "$tempdir/pool/t/test.deb" => 1}, "purged pool");
+$sources{"pool/t/test_2.dsc"} = 1;
+purge_source_pool("$tempdir/pool","pool",\%sources,\&count_remove);
+is_deeply(\%removed, { "$tempdir/pool/t/test_1.dsc" => 1}, "purged pool");
 
