@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# Test pooldebclean.pl's main()
+# Test poolsourceclean.pl's main()
 #
 # Doesn't produce coverage reports, but it is exercising the code
 # through a subprocess.  This is required as the standard perl option
@@ -25,10 +25,10 @@
 use strict;
 use Test::More tests => 4;
 
-my $pooldebclean = './pooldebclean.pl';
+my $poolsourceclean = './poolsourceclean.pl';
 
-require_ok($pooldebclean);
+require_ok($poolsourceclean);
 
-is(system($pooldebclean), 2<<8, "zero args");
-is(system($pooldebclean,"--badoption"), 2<<8, "--badoption");
-is(system($pooldebclean,"--help"), 1<<8, "--help");
+is(system($poolsourceclean), 2<<8, "zero args");
+is(system($poolsourceclean,"--badoption"), 2<<8, "--badoption");
+is(system($poolsourceclean,"--help"), 1<<8, "--help");
