@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# Test pooldebclean.pl's pooldebclean()
+# Test pooldebclean.pl's poolsourceclean()
 #
 #
 # Copyright 2010 Google Inc.
@@ -22,37 +22,43 @@ use strict;
 use Test::More tests => 8;
 use File::Temp qw/ tempdir/;
 
-my $pooldebclean = './pooldebclean.pl';
+my $poolsourceclean = './poolsourceclean.pl';
 
-require_ok($pooldebclean);
+require_ok($poolsourceclean);
 
 my $tempdir =  tempdir( CLEANUP => 1);
 
-is_deeply(pooldebclean("$tempdir/missing"),
+is_deeply(poolsourceclean("$tempdir/missing"),
 	  ["$tempdir/missing/ does not exist", 2],
 	  "missing repository");
 
-is_deeply(pooldebclean($tempdir),
+is_deeply(poolsourceclean($tempdir),
 	  ["$tempdir/dists/ does not exist", 2],
 	  "missing dists");
 
 mkdir "$tempdir/dists";
-is_deeply(pooldebclean($tempdir),
+is_deeply(poolsourceclean($tempdir),
 	  ["$tempdir/pool/ does not exist", 2],
 	  "missing pool");
 
 mkdir "$tempdir/pool";
-is_deeply(pooldebclean($tempdir),
+is_deeply(poolsourceclean($tempdir),
 	  [undef, 0],
-	  "pooldebclean repository prereqs OK");
+	  "poolsourceclean repository prereqs OK");
 
-open(PACKAGES,">","$tempdir/dists/Packages");
-print PACKAGES "Filename: pool/test.deb\n";
-close(PACKAGES);
-system("touch","$tempdir/pool/test.deb");
-system("touch","$tempdir/pool/test2.deb");
-is_deeply(pooldebclean($tempdir),
+open(SOURCES,">","$tempdir/dists/Sources");
+print SOURCES <<EOF;
+Directory: pool/t
+Files:
+ aa 0 test_2.dsc
+
+EOF
+close(SOURCES);
+mkdir "$tempdir/pool/t";
+system("touch","$tempdir/pool/t/test_1.dsc");
+system("touch","$tempdir/pool/t/test_2.dsc");
+is_deeply(poolsourceclean($tempdir),
 	  [undef, 0],
-	  "pooldebclean parsed Packages");
-ok(-f "$tempdir/pool/test.deb", "referenced deb saved");
-ok(! -f "$tempdir/pool/test2.deb", "unreferenced deb deleted");
+	  "poolsourceclean parsed Sources");
+ok(! -f "$tempdir/pool/t/test_1.dsc", "unreferenced source deleted");
+ok(-f "$tempdir/pool/t/test_2.dsc", "referenced source saved");

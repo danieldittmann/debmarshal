@@ -25,6 +25,7 @@ use Pod::Usage;
 use DirHandle;
 use FileHandle;
 use File::Path qw(make_path remove_tree);
+use strict;
 
 #
 # Return a list of files of all the Sources files
@@ -67,18 +68,18 @@ sub parse_sources($$) {
 }
 
 
-sub purge_pool($$$$);
-sub purge_pool($$$$) {
-  my ($dir,$path,$packages,$unlink) = @_;
+sub purge_source_pool($$$$);
+sub purge_source_pool($$$$) {
+  my ($dir,$path,$sources,$unlink) = @_;
   my $dh = new DirHandle $dir;
   while (my $de = $dh->read) {
     my $fullpath = "$dir/$de";
     next if $de eq '.' || $de eq '..';
     if (-d $fullpath) {
-      purge_pool("$dir/$de","$path/$de",$packages,$unlink);
+      purge_source_pool("$dir/$de","$path/$de",$sources,$unlink);
     } elsif (-f $fullpath) {
-      if ($de =~ /\.deb$/) {
-	if (!defined $packages->{"$path/$de"}) {
+      if ($de =~ /\.(dsc|tar.gz|changes)$/) {
+	if (!defined $sources->{"$path/$de"}) {
 	  &{$unlink}($fullpath);
 	}
       }
@@ -88,7 +89,7 @@ sub purge_pool($$$$) {
 
 sub poolsourceclean($) {
   my ($repository) = @_;
-  my (%packages);
+  my (%sources);
 
   if (! -d $repository) {
     return ["$repository/ does not exist", 2];
@@ -103,11 +104,10 @@ sub poolsourceclean($) {
   my (@sources) = sources_files("$repository/dists");
   foreach my $source (@sources) {
     my $sourcefh = new FileHandle $source;
-    parse_sources($packagefh,\%sources);
+    parse_sources($sourcefh,\%sources);
   }
 
   purge_source_pool("$repository/pool", "pool", \%sources, sub {unlink @_;} );
-
 
   [undef, 0];
 }
@@ -180,7 +180,7 @@ Prints the manual page and exits.
 
 =head1 DESCRIPTION
 
-B<debmarshal_pooldebclean> will delete all the unused .debs in a repository
+B<debmarshal_poolsourceclean> will delete all the unused source in a repository
 pool, including debmarshal snapshot and regular Debian repositories.
 
 =cut
