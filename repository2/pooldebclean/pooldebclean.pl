@@ -63,10 +63,9 @@ sub parse_packages($$) {
 sub purge_pool($$$$);
 sub purge_pool($$$$) {
   my ($dir,$path,$packages,$unlink) = @_;
-
   my $dh = new DirHandle $dir;
-  foreach (my $de = $dh->read) {
-    my $fullpath = "$path/$de";
+  while (my $de = $dh->read) {
+    my $fullpath = "$dir/$de";
     next if $de eq '.' || $de eq '..';
     if (-d $fullpath) {
       purge_pool("$dir/$de","$path/$de",$packages,$unlink);
