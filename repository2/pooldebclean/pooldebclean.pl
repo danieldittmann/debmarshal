@@ -39,8 +39,10 @@ sub packages_files($) {
     my $path = "$dir/$de";
     if (-d $path) {
       push @packages, packages_files($path);
-    } elsif (-f $path && $de eq 'Packages') {
-      push(@packages,$path);
+    } elsif (-f $path) {
+      if ($de eq 'Packages') {
+	push(@packages,$path);
+      }
     }
   }
   @packages;

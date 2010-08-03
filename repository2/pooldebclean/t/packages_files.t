@@ -34,5 +34,7 @@ is(packages_files($tempdir),0,"no Packages files");
 mkdir "$tempdir/sid";
 system("touch","$tempdir/README");
 system("touch","$tempdir/sid/Packages");
-is_deeply(packages_files($tempdir),"$tempdir/sid/Packages",
+symlink("broken","$tempdir/broken.link");
+my @packages = packages_files($tempdir);
+is_deeply(\@packages,["$tempdir/sid/Packages"],
 	"Packages file");
