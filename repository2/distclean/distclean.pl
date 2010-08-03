@@ -83,9 +83,9 @@ sub main {
     pod2usage("$0: Repository directory and dist required.\n");
   }
 
-  my ($inputdir) = @ARGV;
+  my ($inputdir,$dist) = @ARGV;
 
-  my ($rcmsg,$rc) = distclean($inputdir,"null", \%options);
+  my ($rcmsg,$rc) = @{distclean($inputdir, $dist, \%options)};
   print STDERR $rcmsg;
   $rc;
 }
