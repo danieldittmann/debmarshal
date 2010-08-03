@@ -1,6 +1,6 @@
 #!/usr/bin/perl -w
 #
-# Test pooldebclean.pl's parse_packages()
+# Test pooldebclean.pl's parse_sources()
 #
 #
 # Copyright 2010 Google Inc.
@@ -23,31 +23,22 @@ use Test::More tests => 2;
 use File::Temp qw/ tempdir/;
 use IO::String;
 
-my $pooldebclean = './pooldebclean.pl';
+my $poolsourceclean = './poolsourceclean.pl';
 
-require_ok($pooldebclean);
+require_ok($poolsourceclean);
 
 
-my $packages = new IO::String <<EOF;
-Package: package
-Priority: optional
-Section: utils
-Installed-Size: 1
-Maintainer: Someone <someone\@debian.org>
-Architecture: all
-Version: 0.5-3
-Filename: pool/main/p/package/package_0.5-3_all.deb
-Size: 243
-MD5sum: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-SHA1: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-SHA256: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-Description: A sample tool
- A tool that does very little
-Tag: implemented-in::perl, role::program, use::converting
+my $sources = new IO::String <<EOF;
+Package: test
+Binary: test-bin
+Version: 1
+Directory: pool/main/t/test
+Files:
+ aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0 test_1.dsc
 
 EOF
 
-my (%packages);
-parse_packages($packages,\%packages);
-is_deeply(\%packages, { 'pool/main/p/package/package_0.5-3_all.deb' => 1 },
-	 "Package filename parsed");
+my (%sources);
+parse_sources($sources,\%sources);
+is_deeply(\%sources, { 'pool/main/t/test/test_1.dsc' => 1 },
+	 "Source filename parsed");

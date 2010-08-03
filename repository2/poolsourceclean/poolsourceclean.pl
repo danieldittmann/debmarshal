@@ -49,14 +49,19 @@ sub packages_files($) {
 }
 
 #
-# Parse an open filehandle that is a Packages file for the complete
-# list of .debs that are indexed in a repository.
+# Parse an open filehandle that is a Sources file for the complete
+# list of source files that are indexed in a repository.
 #
-sub parse_packages($$) {
-  my ($fh,$packages) = @_;
+sub parse_sources($$) {
+  my ($fh,$sources) = @_;
+  my ($directory);
   while (my $line = $fh->getline) {
-    if ($line =~ /^Filename:\s*(\S+)\s*$/) {
-      $packages->{$1}++;
+    if ($line =~ /^Directory: (\S+)\s*$/) {
+      $directory = $1;
+    } elsif ($line =~ /^ [0-9a-f]+ \d+ (\S+)\s*$/) {
+      $sources->{"$directory/$1"}++;
+    } elsif ($line =~ /^$/) {
+      $directory = undef;
     }
   }
 }
