@@ -23,6 +23,7 @@
 use Getopt::Long;
 use Pod::Usage;
 use DirHandle;
+use FileHandle;
 use File::Path qw(make_path remove_tree);
 
 #
@@ -94,7 +95,6 @@ sub pooldebclean($$) {
   }
 
   foreach my $package (packages_files("$repository/dists")) {
-    print STDERR "parse_packages($package)\n";
     my $packagefh = new FileHandle $package;
     parse_packages($packagefh,\%packages);
   }
