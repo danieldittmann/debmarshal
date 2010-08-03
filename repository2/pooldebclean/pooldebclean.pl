@@ -126,8 +126,8 @@ sub main {
 
   my ($inputdir) = @ARGV;
 
-  my ($rcmsg,$rc) = pooldebclean($inputdir, \%options);
-  print STDERR $rcmsg;
+  my ($rcmsg,$rc) = @{pooldebclean($inputdir, \%options)};
+  print STDERR $rcmsg if defined $rcmsg;
   $rc;
 }
 
