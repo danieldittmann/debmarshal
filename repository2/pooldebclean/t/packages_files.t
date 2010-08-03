@@ -31,5 +31,8 @@ my $tempdir =  tempdir( CLEANUP => 1);
 
 is(packages_files($tempdir),0,"no Packages files");
 
-mkdir "$tempdir/dists";
-is(packages_files($tempdir),0,"no Packages files");
+mkdir "$tempdir/sid";
+system("touch","$tempdir/README");
+system("touch","$tempdir/sid/Packages");
+is_deeply(packages_files($tempdir),"$tempdir/sid/Packages",
+	"Packages file");
