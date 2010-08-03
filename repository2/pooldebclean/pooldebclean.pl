@@ -39,7 +39,12 @@ sub packages_filehandles($) {
 # list of .debs that are indexed in a repository.
 #
 sub parse_packages($$) {
-  my ($fh,$packages);
+  my ($fh,$packages) = @_;
+  while (my $line = $fh->getline) {
+    if ($line =~ /^Filename:\s*(\S+)\s*$/) {
+      $packages->{$1}++;
+    }
+  }
 }
 
 
