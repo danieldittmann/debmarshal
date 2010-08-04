@@ -25,6 +25,7 @@ use Pod::Usage;
 use DirHandle;
 use FileHandle;
 use File::Path qw(make_path remove_tree);
+use strict;
 
 #
 # Return a list of files of all the Packages files
