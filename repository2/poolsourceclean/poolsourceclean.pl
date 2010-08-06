@@ -78,7 +78,7 @@ sub purge_source_pool($$$$) {
     if (-d $fullpath) {
       purge_source_pool("$dir/$de","$path/$de",$sources,$unlink);
     } elsif (-f $fullpath) {
-      if ($de =~ /\.(dsc|tar.gz|changes)$/) {
+      if ($de =~ /\.(dsc|tar\.gz|diff\.gz)$/) {
 	if (!defined $sources->{"$path/$de"}) {
 	  &{$unlink}($fullpath);
 	}
