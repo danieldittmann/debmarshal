@@ -1,0 +1,101 @@
+#!/bin/sh -x
+#
+# An example script to mirror Debian/squeeze into debmarshal snapshots.
+# debmirror is used to pull and verify distributions, and debmarshal
+# to take each snapshot.  An empty dbs and three tracking stanzas in
+# config/repository are required.  See
+# http://code.google.com/p/debmarshal/wiki/DebmarshalRepositoryMirrorSetup
+# for details.
+#
+#
+# Copyright 2009 Google Inc.
+# Author: Drake Diedrich <dld@google.com>
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, version 2.
+#
+# This program is distributed in the hope that it will be useful, but
+# WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+# General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+# 02110-1301, USA.
+
+set -e
+
+#
+# use debmirror and gnupg to pull and verify all of the distributions
+# you wish to track.
+#
+
+/usr/bin/debmirror --debug -v --progress \
+	--method=http \
+	-h ftp.us.debian.org --root=debian \
+	--dist=squeeze \
+	--section=main \
+	--arch=i386,amd64 \
+	--nocleanup --source \
+	--diff=mirror --debmarshal --getcontents \
+	/var/lib/debmarshal/debian
+
+/usr/bin/debmirror --debug -v --progress \
+	--method=http \
+	-h security.debian.org --root=debian-security \
+	--dist=squeeze/updates \
+	--section=main \
+	--arch=i386,amd64 \
+	--nocleanup --source \
+	--diff=mirror --debmarshal \
+	/var/lib/debmarshal/debian
+
+exit 0
+
+#
+# debmarshal uses the pwd to find configuration files, distributions to
+# index, and tracks to write pack out
+#
+cd /var/lib/debmarshal/debian
+
+
+#
+# scan the pool, opening each new .deb and source file.  Write the
+# meta data and checksum for each into Berkeley DB files in dbs/.
+# Create dbs/ if it does not yet exist.
+#
+[ -d dbs ] || mkdir dbs
+/usr/lib/debmarshal/index_pool.py
+
+
+#
+# Read all of the Release and Packages files for each mirrored distribution.
+# This will create snapshots of each and point the latest link to the
+# newest snapshot.  make_release.py always creates a snapshot, even if
+# no changes have occured, so call with with diff rather than commit if there
+# is an existing snapshot already present.
+#
+for d in squeeze
+do
+  if [ \! -L dists/$d/latest ] || \
+    /usr/lib/debmarshal/make_release.py --dist dists/$d --track $d diff $d/latest 2>&1 | egrep -q '^[-+]'
+  then
+    /usr/lib/debmarshal/make_release.py --dist dists/$d --track $d commit
+  fi
+done
+
+
+#
+# debmarshal doesn't support track names with / in them, so use - instead
+# and move it to the top level of dists/ like the other tracks.
+#
+for d in squeeze
+do
+  if [ \! -L dists/${d}-updates/latest ] || \
+    /usr/lib/debmarshal/make_release.py --dist dists/${d}/updates --track ${d}-updates diff ${d}-updates/latest 2>&1 | egrep -q '^[-+]'
+  then
+    /usr/lib/debmarshal/make_release.py --dist dists/${d}/updates --track ${d}-updates commit
+  fi
+done
