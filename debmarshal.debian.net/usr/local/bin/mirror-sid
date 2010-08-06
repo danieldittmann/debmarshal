@@ -1,14 +1,18 @@
 #!/bin/sh -x
 #
-# An example script to mirror Debian/lenny into debmarshal snapshots.
-# debmiror is used to pull and verify distributions, and debmarshal
-# to take each snapshot.  An empty dbs and three tracking stanzas in
-# config/repository are required.  See
-# http://code.google.com/p/debmarshal/wiki/DebmarshalRepositoryMirrorSetup
-# for details.
+# An example script to mirror Debian/sid into debmarshal snapshots.
+# debmiror is used to pull and verify distributions, and using a debmarshal
+# patch also takes each snapshot.  The latest symlink is updated
+# after each successful pull.
+# EDOS is then used to count the failures in each distribution.
+# if the count is zero for each architecture, the "best" symlink is
+# updated to this snapshot.
+# If the linecount of the EDOS failures is the same or less for all
+# architectures, the "better" symlink is updated to the latest snapshot.
+# See http://code.google.com/p/debmarshal/wiki/DebmarshalRepositoryMirrorSetup
+# for further details.
 #
-#
-# Copyright 2009 Google Inc.
+# Copyright 2009,2010 Google Inc.
 # Author: Drake Diedrich <dld@google.com>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -42,37 +46,46 @@ set -e
 	--diff=mirror --debmarshal --getcontents \
 	/var/lib/debmarshal/debian
 
-exit 0
-
-#
-# debmarshal uses the pwd to find configuration files, distributions to
-# index, and tracks to write pack out
-#
 cd /var/lib/debmarshal/debian
 
+latest=`readlink dists/sid/latest`
 
 #
-# scan the pool, opening each new .deb and source file.  Write the
-# meta data and checksum for each into Berkeley DB files in dbs/.
-# Create dbs/ if it does not yet exist.
+# Update the "best" symlink if edos-debcheck reports no failures
+# on each architecture.
 #
-[ -d dbs ] || mkdir dbs
-/usr/lib/debmarshal/index_pool.py
-
-
-#
-# Read all of the Release and Packages files for each mirrored distribution.
-# This will create snapshots of each and point the latest link to the
-# newest snapshot.  make_release.py always creates a snapshot, even if
-# no changes have occured, so call with with diff rather than commit if there
-# is an existing snapshot already present.
-#
-for d in sid
+best=1
+for arch in i386 amd64
 do
-  if [ \! -L dists/$d/latest ] || \
-    /usr/lib/debmarshal/make_release.py --dist dists/$d --track $d diff $d/latest 2>&1 | egrep -q '^[-+]'
-  then
-    /usr/lib/debmarshal/make_release.py --dist dists/$d --track $d commit
-  fi
+	if edos-debcheck -failures \
+		<dists/sid/${latest}/main/binary-${arch}/Packages \
+		>dists/sid/${latest}/main/binary-${arch}/Packages.edos
+	then
+		best=0
+	fi
 done
 
+if [ -n "$best" ]
+then
+	ln -sf $latest dists/sid/best
+fi
+
+
+#
+# Update the "better" symlink if each architecture's .edos file
+# is as short as or shorter than it's successor
+#
+better=1
+for arch in i386 amd64
+do
+	new=`wc -l dists/sid/${latest}/main/binary-${arch}/Packages.edos`
+	old=`wc -l dists/sid/better/main/binary-${arch}/Packages.edos
+	if [ "$new" -gt "$old" ] ; then
+		better=0
+	fi
+done
+
+if [ -n "$better" ]
+then
+	ln -sf $latest dists/sid/better
+fi
