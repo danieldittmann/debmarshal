@@ -38,7 +38,8 @@ sub sources_files($) {
   while (my $de = $dh->read) {
     next if ($de eq '.' || $de eq '..');
     my $path = "$dir/$de";
-    if (-d $path) {
+    if (-l $path) {
+    } elsif (-d $path) {
       push @sources, sources_files($path);
     } elsif (-f $path) {
       if ($de eq 'Sources') {

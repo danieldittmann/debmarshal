@@ -22,6 +22,7 @@ use strict;
 use Test::More tests => 3;
 use File::Temp qw/ tempdir/;
 use IO::String;
+use File::Path qw(make_path remove_tree);;
 
 my $poolsourceclean = './poolsourceclean.pl';
 
@@ -31,10 +32,22 @@ my $tempdir =  tempdir( CLEANUP => 1);
 
 is(sources_files($tempdir),0,"no Sources files");
 
-mkdir "$tempdir/sid";
-system("touch","$tempdir/README");
-system("touch","$tempdir/sid/Sources");
-symlink("broken","$tempdir/broken.link");
+make_path "$tempdir/dists/sid/98/main/binary-amd64/";
+make_path "$tempdir/dists/sid/98/main/source/";
+make_path "$tempdir/dists/sid/99/main/source/";
+symlink("98","$tempdir/dists/sid/stable");
+symlink("99","$tempdir/dists/sid/latest");
+symlink("broken","$tempdir/dists/sid/broken.link");
+system("touch","$tempdir/dists/README");
+system("touch","$tempdir/dists/sid/98/main/binary-amd64/Packages");
+system("touch","$tempdir/dists/sid/98/main/source/Sources");
+system("touch","$tempdir/dists/sid/99/main/source/Sources");
+system("mkfifo","$tempdir/dists/sid/Sources");
+
 my @sources = sources_files($tempdir);
-is_deeply(\@sources,["$tempdir/sid/Sources"],
-	"Sources file");
+
+is_deeply(\@sources,
+	  [ "$tempdir/dists/sid/98/main/source/Sources",
+	    "$tempdir/dists/sid/99/main/source/Sources"
+	  ],
+	"Sources files");
