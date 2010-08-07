@@ -1,14 +1,18 @@
 #!/bin/sh -x
 #
 # An example script to mirror Debian/squeeze into debmarshal snapshots.
-# debmirror is used to pull and verify distributions, and debmarshal
-# to take each snapshot.  An empty dbs and three tracking stanzas in
-# config/repository are required.  See
-# http://code.google.com/p/debmarshal/wiki/DebmarshalRepositoryMirrorSetup
-# for details.
+# debmiror is used to pull and verify distributions, and using a debmarshal
+# patch also takes each snapshot.  The latest symlink is updated
+# after each successful pull.
+# EDOS is then used to count the failures in each distribution.
+# if the count is zero for each architecture, the "best" symlink is
+# updated to this snapshot.
+# If the linecount of the EDOS failures is the same or less for all
+# architectures, the "better" symlink is updated to the latest snapshot.
+# See http://code.google.com/p/debmarshal/wiki/DebmarshalRepositoryMirrorSetup
+# for further details.
 #
-#
-# Copyright 2009 Google Inc.
+# Copyright 2009,2010 Google Inc.
 # Author: Drake Diedrich <dld@google.com>
 #
 # This program is free software; you can redistribute it and/or modify
@@ -36,66 +40,63 @@ set -e
 	--method=http \
 	-h ftp.us.debian.org --root=debian \
 	--dist=squeeze \
-	--section=main \
+	--section=main,contrib,non-free \
 	--arch=i386,amd64 \
 	--nocleanup --source \
 	--diff=mirror --debmarshal --getcontents \
 	/var/lib/debmarshal/debian
 
-/usr/bin/debmirror --debug -v --progress \
-	--method=http \
-	-h security.debian.org --root=debian-security \
-	--dist=squeeze/updates \
-	--section=main \
-	--arch=i386,amd64 \
-	--nocleanup --source \
-	--diff=mirror --debmarshal \
-	/var/lib/debmarshal/debian
+cd /var/lib/debmarshal/debian/dists/squeeze
 
-exit 0
+latest=`readlink latest`
 
 #
-# debmarshal uses the pwd to find configuration files, distributions to
-# index, and tracks to write pack out
+# Update the "best" symlink if edos-debcheck reports no failures
+# on each architecture.
 #
-cd /var/lib/debmarshal/debian
-
-
-#
-# scan the pool, opening each new .deb and source file.  Write the
-# meta data and checksum for each into Berkeley DB files in dbs/.
-# Create dbs/ if it does not yet exist.
-#
-[ -d dbs ] || mkdir dbs
-/usr/lib/debmarshal/index_pool.py
-
-
-#
-# Read all of the Release and Packages files for each mirrored distribution.
-# This will create snapshots of each and point the latest link to the
-# newest snapshot.  make_release.py always creates a snapshot, even if
-# no changes have occured, so call with with diff rather than commit if there
-# is an existing snapshot already present.
-#
-for d in squeeze
+best=1
+for arch in i386 amd64
 do
-  if [ \! -L dists/$d/latest ] || \
-    /usr/lib/debmarshal/make_release.py --dist dists/$d --track $d diff $d/latest 2>&1 | egrep -q '^[-+]'
-  then
-    /usr/lib/debmarshal/make_release.py --dist dists/$d --track $d commit
-  fi
+	if ! edos-debcheck -failures \
+		<latest/main/binary-${arch}/Packages \
+		>latest/main/binary-${arch}/Packages.edos
+	then
+		best=0
+	fi
 done
 
+if [ "$best" -eq "1" ]
+then
+	echo best=$best
+	mv best best.0
+	ln -sf $latest best
+fi
+
 
 #
-# debmarshal doesn't support track names with / in them, so use - instead
-# and move it to the top level of dists/ like the other tracks.
+# Update the "better" symlink if each architecture's .edos file
+# is as short as or shorter than it's successor
 #
-for d in squeeze
+better=1
+for arch in i386 amd64
 do
-  if [ \! -L dists/${d}-updates/latest ] || \
-    /usr/lib/debmarshal/make_release.py --dist dists/${d}/updates --track ${d}-updates diff ${d}-updates/latest 2>&1 | egrep -q '^[-+]'
-  then
-    /usr/lib/debmarshal/make_release.py --dist dists/${d}/updates --track ${d}-updates commit
-  fi
+	new=`wc -l <latest/main/binary-${arch}/Packages.edos`
+	old=`wc -l <better/main/binary-${arch}/Packages.edos`
+	if [ "$new" -gt "$old" ] ; then
+		better=0
+	fi
 done
+
+if [ "$better" -eq "1" ]
+then
+	mv better better.0
+	ln -sf $latest better
+fi
+
+#
+# clean out unused debs, sources, and dists, in reverse order
+# to maximise retention
+#
+poolsourceclean.pl /var/lib/debmarshal/debian
+pooldebclean.pl /var/lib/debmarshal/debian
+distclean.pl /var/lib/debmarshal/debian squeeze
