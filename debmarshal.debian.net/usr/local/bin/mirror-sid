@@ -46,9 +46,9 @@ set -e
 	--diff=mirror --debmarshal --getcontents \
 	/var/lib/debmarshal/debian
 
-cd /var/lib/debmarshal/debian
+cd /var/lib/debmarshal/debian/dists/sid
 
-latest=`readlink dists/sid/latest`
+latest=`readlink latest`
 
 #
 # Update the "best" symlink if edos-debcheck reports no failures
@@ -57,17 +57,19 @@ latest=`readlink dists/sid/latest`
 best=1
 for arch in i386 amd64
 do
-	if edos-debcheck -failures \
-		<dists/sid/${latest}/main/binary-${arch}/Packages \
-		>dists/sid/${latest}/main/binary-${arch}/Packages.edos
+	if ! edos-debcheck -failures \
+		<latest/main/binary-${arch}/Packages \
+		>latest/main/binary-${arch}/Packages.edos
 	then
 		best=0
 	fi
 done
 
-if [ -n "$best" ]
+if [ "$best" -eq "1" ]
 then
-	ln -sf $latest dists/sid/best
+	echo best=$best
+	mv best best.0
+	ln -sf $latest best
 fi
 
 
@@ -78,14 +80,15 @@ fi
 better=1
 for arch in i386 amd64
 do
-	new=`wc -l dists/sid/${latest}/main/binary-${arch}/Packages.edos`
-	old=`wc -l dists/sid/better/main/binary-${arch}/Packages.edos
+	new=`wc -l <latest/main/binary-${arch}/Packages.edos`
+	old=`wc -l <better/main/binary-${arch}/Packages.edos`
 	if [ "$new" -gt "$old" ] ; then
 		better=0
 	fi
 done
 
-if [ -n "$better" ]
+if [ "$better" -eq "1" ]
 then
-	ln -sf $latest dists/sid/better
+	mv better better.0
+	ln -sf $latest better
 fi
