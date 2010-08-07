@@ -22,6 +22,7 @@ use strict;
 use Test::More tests => 3;
 use File::Temp qw/ tempdir/;
 use IO::String;
+use File::Path qw(make_path remove_tree);;
 
 my $pooldebclean = './pooldebclean.pl';
 
@@ -29,12 +30,28 @@ require_ok($pooldebclean);
 
 my $tempdir =  tempdir( CLEANUP => 1);
 
-is(packages_files($tempdir),0,"no Packages files");
+is(packages_files($tempdir), 0, "no Packages files");
 
-mkdir "$tempdir/sid";
+make_path "$tempdir/sid/98/main/binary-amd64/";
+make_path "$tempdir/sid/98/main/binary-i386/";
+make_path "$tempdir/sid/99/main/binary-amd64/";
+make_path "$tempdir/sid/99/main/binary-i386/";
+symlink("98","$tempdir/sid/stable");
+symlink("98","$tempdir/sid/latest");
+symlink("broken","$tempdir/sid/broken.link");
 system("touch","$tempdir/README");
-system("touch","$tempdir/sid/Packages");
-symlink("broken","$tempdir/broken.link");
+system("touch","$tempdir/sid/98/main/binary-amd64/Packages");
+system("touch","$tempdir/sid/98/main/binary-i386/Packages");
+system("touch","$tempdir/sid/99/main/binary-amd64/Packages");
+system("touch","$tempdir/sid/99/main/binary-i386/Packages");
+
 my @packages = packages_files($tempdir);
-is_deeply(\@packages,["$tempdir/sid/Packages"],
+sort @packages;
+
+is_deeply(\@packages,
+	  [ "$tempdir/sid/98/main/binary-amd64/Packages",
+	    "$tempdir/sid/98/main/binary-i386/Packages",
+	    "$tempdir/sid/99/main/binary-amd64/Packages",
+	    "$tempdir/sid/99/main/binary-i386/Packages"
+	  ],
 	"Packages file");

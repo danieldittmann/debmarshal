@@ -38,7 +38,8 @@ sub packages_files($) {
   while (my $de = $dh->read) {
     next if ($de eq '.' || $de eq '..');
     my $path = "$dir/$de";
-    if (-d $path) {
+    if (-l $path) {
+    } elsif (-d $path) {
       push @packages, packages_files($path);
     } elsif (-f $path) {
       if ($de eq 'Packages') {
@@ -96,7 +97,7 @@ sub pooldebclean($) {
     return ["$repository/pool/ does not exist",2];
   }
 
-  my (@packages) = packages_files("$repository/dists");
+  my (@packages) = packages_files("$repository/dist");
   foreach my $package (@packages) {
     my $packagefh = new FileHandle $package;
     parse_packages($packagefh,\%packages);
