@@ -33,7 +33,6 @@ use strict;
 sub packages_files($);
 sub packages_files($) {
   my ($dir) = @_;
-  print "packages_files($dir)\n";
   my (@packages);
   my $dh = new DirHandle $dir;
   while (my $de = $dh->read) {
