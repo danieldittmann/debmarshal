@@ -32,26 +32,27 @@ my $tempdir =  tempdir( CLEANUP => 1);
 
 is(packages_files($tempdir), 0, "no Packages files");
 
-make_path "$tempdir/sid/98/main/binary-amd64/";
-make_path "$tempdir/sid/98/main/binary-i386/";
-make_path "$tempdir/sid/99/main/binary-amd64/";
-make_path "$tempdir/sid/99/main/binary-i386/";
-symlink("98","$tempdir/sid/stable");
-symlink("98","$tempdir/sid/latest");
-symlink("broken","$tempdir/sid/broken.link");
-system("touch","$tempdir/README");
-system("touch","$tempdir/sid/98/main/binary-amd64/Packages");
-system("touch","$tempdir/sid/98/main/binary-i386/Packages");
-system("touch","$tempdir/sid/99/main/binary-amd64/Packages");
-system("touch","$tempdir/sid/99/main/binary-i386/Packages");
+make_path "$tempdir/dists/sid/98/main/binary-amd64/";
+make_path "$tempdir/dists/sid/98/main/binary-i386/";
+make_path "$tempdir/dists/sid/99/main/binary-amd64/";
+make_path "$tempdir/dists/sid/99/main/binary-i386/";
+symlink("98","$tempdir/dists/sid/stable");
+symlink("99","$tempdir/dists/sid/latest");
+symlink("broken","$tempdir/dists/sid/broken.link");
+system("touch","$tempdir/dists/README");
+system("touch","$tempdir/dists/sid/98/main/binary-amd64/Packages");
+system("touch","$tempdir/dists/sid/98/main/binary-amd64/Sources");
+system("touch","$tempdir/dists/sid/98/main/binary-i386/Packages");
+system("touch","$tempdir/dists/sid/99/main/binary-amd64/Packages");
+system("touch","$tempdir/dists/sid/99/main/binary-i386/Packages");
+system("mkfifo","$tempdir/dists/sid/Packages");
 
-my @packages = packages_files($tempdir);
-sort @packages;
+my @packages = packages_files("$tempdir/dists/sid");
 
 is_deeply(\@packages,
-	  [ "$tempdir/sid/98/main/binary-amd64/Packages",
-	    "$tempdir/sid/98/main/binary-i386/Packages",
-	    "$tempdir/sid/99/main/binary-amd64/Packages",
-	    "$tempdir/sid/99/main/binary-i386/Packages"
+	  [ "$tempdir/dists/sid/98/main/binary-amd64/Packages",
+	    "$tempdir/dists/sid/98/main/binary-i386/Packages",
+	    "$tempdir/dists/sid/99/main/binary-amd64/Packages",
+	    "$tempdir/dists/sid/99/main/binary-i386/Packages"
 	  ],
 	"Packages file");

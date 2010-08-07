@@ -33,6 +33,7 @@ use strict;
 sub packages_files($);
 sub packages_files($) {
   my ($dir) = @_;
+  print "packages_files($dir)\n";
   my (@packages);
   my $dh = new DirHandle $dir;
   while (my $de = $dh->read) {
@@ -97,7 +98,7 @@ sub pooldebclean($) {
     return ["$repository/pool/ does not exist",2];
   }
 
-  my (@packages) = packages_files("$repository/dist");
+  my (@packages) = packages_files("$repository/dists");
   foreach my $package (@packages) {
     my $packagefh = new FileHandle $package;
     parse_packages($packagefh,\%packages);
