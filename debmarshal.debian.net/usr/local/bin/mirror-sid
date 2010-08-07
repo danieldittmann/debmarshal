@@ -57,7 +57,7 @@ latest=`readlink latest`
 best=1
 for arch in i386 amd64
 do
-	if ! edos-debcheck -failures \
+	if ! edos-debcheck -failures -explain \
 		<latest/main/binary-${arch}/Packages \
 		>latest/main/binary-${arch}/Packages.edos
 	then
@@ -75,14 +75,18 @@ fi
 
 #
 # Update the "better" symlink if each architecture's .edos file
-# is as short as or shorter than it's successor
+# has no new broken packages than the previous better snapshot
 #
 better=1
 for arch in i386 amd64
 do
-	new=`wc -l <latest/main/binary-${arch}/Packages.edos`
-	old=`wc -l <better/main/binary-${arch}/Packages.edos`
-	if [ "$new" -gt "$old" ] ; then
+	awk '/FAILED/ { print $1; }' \
+		<latest/main/binary-${arch}/Packages.edos \
+		>latest/main/binary-${arch}/Packages.broken
+	 if diff -u better/main/binary-${arch}/Packages.broken \
+		latest/main/binary-${arch}/Packages.broken | \
+		egrep '^+'
+	then
 		better=0
 	fi
 done
