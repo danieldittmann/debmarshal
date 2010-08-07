@@ -1,2 +1,2 @@
-MAILTO=dld@kernwifi.net
+MAILTO=debmarshal@kernwifi.net
 5,15,25,35,45,55 *    * * *   debmarshal    /usr/local/bin/upload-foswiki
