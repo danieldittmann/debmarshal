@@ -32,6 +32,14 @@
 set -e
 
 #
+# clean out unused debs, sources, and dists, in reverse order
+# to maximise retention
+#
+poolsourceclean.pl /var/lib/debmarshal/debian
+pooldebclean.pl /var/lib/debmarshal/debian
+distclean.pl /var/lib/debmarshal/debian squeeze
+
+#
 # use debmirror and gnupg to pull and verify all of the distributions
 # you wish to track.
 #
@@ -97,10 +105,3 @@ then
 	ln -sf $latest better
 fi
 
-#
-# clean out unused debs, sources, and dists, in reverse order
-# to maximise retention
-#
-poolsourceclean.pl /var/lib/debmarshal/debian
-pooldebclean.pl /var/lib/debmarshal/debian
-distclean.pl /var/lib/debmarshal/debian squeeze
