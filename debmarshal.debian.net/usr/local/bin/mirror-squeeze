@@ -101,6 +101,7 @@ done
 
 if [ "$better" -eq "1" ]
 then
+	rm -f better.0
 	mv better better.0
 	ln -sf $latest better
 fi
