@@ -37,7 +37,7 @@ set -e
 #
 # poolsourceclean.pl /var/lib/debmarshal/debian
 # pooldebclean.pl /var/lib/debmarshal/debian
-distclean.pl /var/lib/debmarshal/debian squeeze
+/usr/local/bin/distclean.pl /var/lib/debmarshal/debian squeeze
 
 #
 # use debmirror and gnupg to pull and verify all of the distributions
