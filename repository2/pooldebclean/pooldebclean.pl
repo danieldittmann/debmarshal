@@ -25,6 +25,7 @@ use Pod::Usage;
 use DirHandle;
 use FileHandle;
 use File::Path qw(make_path remove_tree);
+use File::Find;
 use strict;
 
 #
@@ -34,19 +35,8 @@ sub packages_files($);
 sub packages_files($) {
   my ($dir) = @_;
   my (@packages);
-  my $dh = new DirHandle $dir;
-  while (my $de = $dh->read) {
-    next if ($de eq '.' || $de eq '..');
-    my $path = "$dir/$de";
-    if (-l $path) {
-    } elsif (-d $path) {
-      push @packages, packages_files($path);
-    } elsif (-f $path) {
-      if ($de eq 'Packages') {
-	push(@packages,$path);
-      }
-    }
-  }
+  find(sub {/^Packages$/ && -f $_ && push(@packages,$File::Find::name); },
+       $dir);
   @packages;
 }
 
