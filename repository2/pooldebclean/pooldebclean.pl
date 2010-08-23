@@ -24,7 +24,7 @@ use Getopt::Long;
 use Pod::Usage;
 use DirHandle;
 use FileHandle;
-use File::Path qw(make_path remove_tree);
+use File::Path;
 use File::Find;
 use strict;
 

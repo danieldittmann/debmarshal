@@ -35,8 +35,8 @@ set -e
 # clean out unused debs, sources, and dists, in reverse order
 # to maximise retention
 #
-# poolsourceclean.pl /var/lib/debmarshal/debian
-# pooldebclean.pl /var/lib/debmarshal/debian
+/usr/local/bin/poolsourceclean.pl /var/lib/debmarshal/debian
+/usr/local/bin/pooldebclean.pl /var/lib/debmarshal/debian
 /usr/local/bin/distclean.pl /var/lib/debmarshal/debian squeeze
 
 #
