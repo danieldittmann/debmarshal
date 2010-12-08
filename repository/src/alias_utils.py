@@ -74,23 +74,15 @@ def UpdateAlias(alias_db, release_db, alias, release):
 def RefreshAlias(alias_db):
   """Refresh all the release alias symlinks in dists/
 
-  This function removes all symlinks at the top-level directory of
-  each maintenance track and re-create the alias symlinks from the
+  This function re-creates the alias symlinks from the
   records in the aliases Berkeley DB table.
   """
-
-  for track in su.ListTracks():
-    track_dir = os.path.join('dists', track)
-    if not os.path.isdir(track_dir):  continue
-    files = os.listdir(track_dir)
-    for name in files:
-      name = os.path.join(track_dir, name)
-      if os.path.islink(name):
-        ou.IgnoreOSError(os.remove, name)
 
   for alias in alias_db:
     name = os.path.join('dists', alias)
     release = alias_db[alias].split('_')[-1]
+    if os.path.islink(name):
+      ou.IgnoreOSError(os.remove, name)
     os.symlink(release, name)
 
 
@@ -129,4 +121,3 @@ def RemoveAlias(alias_db, alias):
     lg.error('There is no such an alias called ' + alias)
     sys.exit()
   del alias_db[alias]
-

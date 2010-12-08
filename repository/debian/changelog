@@ -1,3 +1,9 @@
+debmarshal (1.1) unstable; urgency=low
+
+  * Don't stomp non-debmarshal links in distribution tracks
+
+ -- Drake Diedrich <dld@google.com>  Wed, 08 Dec 2010 15:10:58 -0800
+
 debmarshal (1.0) unstable; urgency=low
 
   * License has been GPLv2 since release, update all files.
