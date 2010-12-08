@@ -2,12 +2,12 @@ Source: debmarshal
 Section: utils
 Priority: optional
 Maintainer: Drake Diedrich <dld@google.com>
-Build-Depends-Indep: cdbs (>= 0.4.4), debhelper
-Standards-Version: 3.7.2
+Build-Depends: cdbs (>= 0.4.4), debhelper (>=7)
+Standards-Version: 3.8.4
 
 Package: debmarshal
 Architecture: all
-Depends: binutils, gnupg, python2.4
+Depends: binutils, gnupg, python2.4, ${misc:Depends}
 Description: Multi-track Debian repository management system
  Debmarshal is a system for managing Debian package repositories.  It
  supports the pool hierarchy, multiple maintenance tracks, staged

@@ -1,8 +1,9 @@
 debmarshal (1.1) unstable; urgency=low
 
   * Don't stomp non-debmarshal links in distribution tracks
+  * lintian fixes and updated packaging
 
- -- Drake Diedrich <dld@google.com>  Wed, 08 Dec 2010 15:10:58 -0800
+ -- Drake Diedrich <dld@google.com>  Wed, 08 Dec 2010 15:13:50 -0800
 
 debmarshal (1.0) unstable; urgency=low
 
