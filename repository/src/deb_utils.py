@@ -50,7 +50,11 @@ def ParseDebInfo(name):
             if not s.endswith('/')]
 
   def DoParseControl(control):
-    mf = control.extractfile('control')
+    try:
+      mf = control.extractfile('control')
+    except KeyError:
+      mf = control.extractfile('./control')
+
     attr_dict = pu.ParseAttributes(mf.readlines())
     mf.close()
     return attr_dict
