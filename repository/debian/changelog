@@ -1,3 +1,12 @@
+debmarshal (1.2) unstable; urgency=low
+
+  * Python 2.6
+  * sheltond: fix control file handling -
+    http://code.google.com/p/debmarshal/issues/detail?id=14
+
+
+ -- Drake Diedrich <dld@google.com>  Mon, 11 Apr 2011 18:33:21 -0700
+
 debmarshal (1.1) unstable; urgency=low
 
   * Don't stomp non-debmarshal links in distribution tracks
