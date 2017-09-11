@@ -325,7 +325,7 @@ def _LoadReleaseInfo(track, version):
   rel_dict['Archive'] = track
   rel_dict['Suite'] = track
   rel_dict['Codename'] = su.GetSetting(track, 'Codename')
-  rel_dict['Date'] = time.strftime('%a, %d %b %Y %H:%M:%S %Z')
+  rel_dict['Date'] = time.strftime('%a, %d %b %Y %H:%M:%S %z', time.gmtime())
   rel_dict['Version'] = version
   rel_dict['Origin'] = su.GetSetting(track, 'Origin')
   rel_dict['Label'] = su.GetSetting(track, 'Label')
